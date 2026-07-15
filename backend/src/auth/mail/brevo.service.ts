@@ -1,4 +1,9 @@
-import { Injectable, Logger, ServiceUnavailableException } from "@nestjs/common";
+import {
+  Injectable,
+  Logger,
+  OnModuleInit,
+  ServiceUnavailableException
+} from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { BrevoClient } from "@getbrevo/brevo";
 
@@ -33,33 +38,68 @@ function formatBrevoError(error: unknown): string {
 }
 
 @Injectable()
-export class BrevoService {
+export class BrevoService implements OnModuleInit {
   private readonly logger = new Logger(BrevoService.name);
 
   constructor(private readonly configService: ConfigService) {}
 
+  onModuleInit() {
+    const apiKey = this.readEnv("BREVO_API_KEY");
+    const senderEmail = this.readEnv("BREVO_SENDER_EMAIL");
+    const recoveryEmail = this.readEnv("RECOVERY_EMAIL");
+    this.logger.log(
+      `Brevo mail status: apiKey=${apiKey ? "set" : "MISSING"} sender=${senderEmail ? "set" : "MISSING"} recovery=${recoveryEmail ? "set" : "MISSING"} nodeEnv=${this.nodeEnv() || "(unset)"}`
+    );
+  }
+
+  private nodeEnv() {
+    return (
+      this.configService.get<string>("NODE_ENV") ??
+      process.env.NODE_ENV ??
+      ""
+    )
+      .trim()
+      .toLowerCase();
+  }
+
+  private isProduction() {
+    const env = this.nodeEnv();
+    return env === "production" || env === "prod";
+  }
+
+  /** Prefer ConfigService, fall back to process.env (Render/runtime injection). */
+  private readEnv(name: string): string | undefined {
+    const fromConfig = this.configService.get<string>(name)?.trim();
+    if (fromConfig) return fromConfig;
+    const fromProcess = process.env[name]?.trim();
+    return fromProcess || undefined;
+  }
+
   async sendPasswordResetOtp(accountEmail: string, otp: string): Promise<void> {
-    const apiKey = this.configService.get<string>("BREVO_API_KEY")?.trim();
-    const senderEmail = this.configService.get<string>("BREVO_SENDER_EMAIL")?.trim();
-    const recoveryEmail = this.configService.get<string>("RECOVERY_EMAIL")?.trim();
-    const isProduction =
-      (this.configService.get<string>("NODE_ENV") ?? process.env.NODE_ENV) === "production";
+    const apiKey = this.readEnv("BREVO_API_KEY");
+    const senderEmail = this.readEnv("BREVO_SENDER_EMAIL");
+    const recoveryEmail = this.readEnv("RECOVERY_EMAIL");
+    const isProduction = this.isProduction();
+    // Only for local: log OTP when Brevo is not configured at all.
+    // Never hide a failed send when keys are present (that masked prod issues).
+    const allowMissingConfigFallback = !isProduction;
 
     if (!apiKey || !senderEmail) {
       this.logger.error(
         "Brevo configuration incomplete (BREVO_API_KEY or BREVO_SENDER_EMAIL missing). OTP email was not sent."
       );
-      if (!isProduction) {
+      if (allowMissingConfigFallback) {
         this.logger.warn(`DEV OTP for ${accountEmail}: ${otp}`);
         return;
       }
-      throw new ServiceUnavailableException("Email service is not configured");
+      throw new ServiceUnavailableException(
+        "Email service is not configured. Set BREVO_API_KEY and BREVO_SENDER_EMAIL."
+      );
     }
 
     const recipients = new Map<string, { email: string }>();
-    // Seed / local accounts like admin@inventory.local are not deliverable; Brevo
-    // may reject the whole request if they appear in `to`. Prefer recovery inbox
-    // and only add the account email when it looks like a real mailbox.
+    // Seed accounts like admin@inventory.local are not deliverable; only send to
+    // real mailboxes / RECOVERY_EMAIL.
     if (isDeliverableEmail(accountEmail)) {
       recipients.set(accountEmail.toLowerCase(), { email: accountEmail.trim() });
     }
@@ -70,11 +110,13 @@ export class BrevoService {
       this.logger.error(
         `No deliverable OTP recipient for ${accountEmail}. Set RECOVERY_EMAIL or use a real account email.`
       );
-      if (!isProduction) {
+      if (allowMissingConfigFallback) {
         this.logger.warn(`DEV OTP for ${accountEmail}: ${otp}`);
         return;
       }
-      throw new ServiceUnavailableException("Email service has no deliverable recipient");
+      throw new ServiceUnavailableException(
+        "Email service has no deliverable recipient. Set RECOVERY_EMAIL."
+      );
     }
 
     const textContent = [
@@ -124,10 +166,6 @@ export class BrevoService {
     } catch (error) {
       const detail = formatBrevoError(error);
       this.logger.error(`Failed to send password reset email via Brevo: ${detail}`);
-      if (!isProduction) {
-        this.logger.warn(`DEV OTP for ${accountEmail}: ${otp}`);
-        return;
-      }
       throw new ServiceUnavailableException("Failed to send password reset email");
     }
   }

@@ -32,10 +32,19 @@ export default function ForgotPasswordPage() {
         description: response.data.data.message
       });
       navigate("/forgot-password/verify", { replace: true, state: { email: trimmed } });
-    } catch {
-      toast.error("Could not start password reset", {
-        description: "Please try again in a moment."
-      });
+    } catch (error: unknown) {
+      const apiError =
+        error && typeof error === "object" && "response" in error
+          ? (error as { response?: { data?: { error?: { message?: string } | string } } })
+              .response?.data?.error
+          : undefined;
+      const description =
+        typeof apiError === "string"
+          ? apiError
+          : apiError && typeof apiError === "object" && apiError.message
+            ? apiError.message
+            : "Please try again in a moment.";
+      toast.error("Could not start password reset", { description });
     } finally {
       setLoading(false);
     }

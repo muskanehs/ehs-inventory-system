@@ -32,8 +32,8 @@ function hasTlsInDatabaseUrl(url: string): boolean {
 
 /** Call before NestFactory.create / listen. Exits process on failure. */
 export function validateEnv(): void {
-  const nodeEnv = process.env.NODE_ENV?.trim() || "development";
-  const isProduction = nodeEnv === "production";
+  const nodeEnv = (process.env.NODE_ENV?.trim() || "development").toLowerCase();
+  const isProduction = nodeEnv === "production" || nodeEnv === "prod";
 
   const databaseUrl = requireVar("DATABASE_URL");
   const jwtAccess = requireVar("JWT_ACCESS_SECRET");
