@@ -167,26 +167,25 @@ export default function InventoryPage() {
               <PackagePlus className="h-4 w-4" />
               Add Stock
             </Button>
+            <Select value={stockFilter} onValueChange={(v) => setStockFilter(parseStockFilter(v))}>
+              <SelectTrigger className="h-9 w-[160px] bg-surface sm:w-[180px]" aria-label="Stock filter">
+                <SelectValue placeholder="All stock" />
+              </SelectTrigger>
+              <SelectContent>
+                {STOCK_FILTERS.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <StockExportDialog label="Export" variant="outline" />
           </>
         }
       />
 
-      <FilterBar>
-        <Select value={stockFilter} onValueChange={(v) => setStockFilter(parseStockFilter(v))}>
-          <SelectTrigger className="h-9 w-full max-w-[200px] bg-surface sm:w-[200px]" aria-label="Stock filter">
-            <SelectValue placeholder="All stock" />
-          </SelectTrigger>
-          <SelectContent>
-            {STOCK_FILTERS.map((option) => (
-              <SelectItem key={option.value} value={option.value}>
-                {option.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        {isGodownScoped && (
+      {isGodownScoped && (
+        <FilterBar>
           <div className="flex w-full max-w-xs shrink-0 rounded-md border border-border/70 bg-muted/30 p-0.5">
             <Button
               type="button"
@@ -219,8 +218,8 @@ export default function InventoryPage() {
               Overall Stock
             </Button>
           </div>
-        )}
-      </FilterBar>
+        </FilterBar>
+      )}
 
       <section className="space-y-4">
         <div className="flex items-center justify-between">
