@@ -25,7 +25,7 @@ function locationName(
   id: string | null | undefined,
   map: Map<string, string>
 ): string {
-  if (!id) return "—";
+  if (!id) return "-";
   return map.get(id) ?? "Unknown";
 }
 
@@ -159,7 +159,7 @@ export default function ActivityPage() {
                         </Badge>
                       </div>
                       <p className="mt-0.5 text-[11px] text-muted-foreground sm:text-xs">
-                        <span className="font-mono">{movement.product.sku ?? "—"}</span>
+                        <span className="font-mono">{movement.product.sku ?? "-"}</span>
                         <span aria-hidden="true"> · </span>
                         {formatNumber(movement.quantity)} pieces
                         {movement.fromLocationId || movement.toLocationId ? (
@@ -167,7 +167,7 @@ export default function ActivityPage() {
                             <span aria-hidden="true"> · </span>
                             {movement.fromLocationId
                               ? locationName(movement.fromLocationId, locationMap)
-                              : "—"}{" "}
+                              : "-"}{" "}
                             → {locationName(movement.toLocationId, locationMap)}
                           </>
                         ) : null}
@@ -220,7 +220,7 @@ export default function ActivityPage() {
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-1.5">
                         <p className="truncate text-sm font-medium">
-                          {transfer.fromLocation?.name ?? "—"} →{" "}
+                          {transfer.fromLocation?.name ?? "-"} →{" "}
                           {transfer.toLocation?.name ?? transfer.customerName ?? "Customer"}
                         </p>
                         <StatusBadge status={transfer.status} />

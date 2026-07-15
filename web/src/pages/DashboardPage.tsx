@@ -1,4 +1,4 @@
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import {
   AlertTriangle,
   ArrowLeftRight,
@@ -15,6 +15,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { PageShell } from "@/components/PageShell";
 import { VelocityList } from "@/components/VelocityList";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useDashboardStats } from "@/hooks/use-dashboard-stats";
@@ -72,7 +73,7 @@ export default function DashboardPage() {
         title="Dashboard"
         description={
           isGodownScoped && assignedLocationName
-            ? `Overview for ${assignedLocationName} — stock, transfers, and activity at your godown.`
+            ? `Overview for ${assignedLocationName}: stock, transfers, and activity at your godown.`
             : "Overview of your inventory health and operations at a glance."
         }
         breadcrumbs={[{ label: "Home", href: "/" }, { label: "Dashboard" }]}
@@ -126,36 +127,41 @@ export default function DashboardPage() {
               Products that need restocking soon
             </CardDescription>
           </CardHeader>
-          <CardContent className="p-4 pt-0 sm:p-6 sm:pt-0">
+          <CardContent className="space-y-3 p-4 pt-0 sm:p-6 sm:pt-0">
             {stats.lowStockItems.length === 0 ? (
               <EmptyState
                 icon={Package}
                 title="No low stock items"
                 description="All products are above their minimum stock levels."
                 actionLabel="View inventory"
-                onAction={() => navigate("/inventory")}
+                onAction={() => navigate("/inventory?filter=low")}
                 className="border-0 bg-transparent py-4 sm:py-6"
               />
             ) : (
-              <ul className="divide-y divide-border/60 rounded-lg border border-border/60">
-                {stats.lowStockItems.map((item) => (
-                  <li
-                    key={item.product.id}
-                    className="flex items-center justify-between gap-3 px-3 py-2 sm:gap-4 sm:px-4 sm:py-3"
-                  >
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-xs font-medium sm:text-sm">{item.product.name}</p>
-                      <p className="mt-0.5 font-mono text-[10px] text-muted-foreground sm:text-xs">
-                        {item.product.sku ?? "—"}
-                      </p>
-                    </div>
-                    <Badge variant="warning" className="text-[10px] sm:text-xs">
-                      {formatNumber(item.totalQuantity)} /{" "}
-                      {formatNumber(item.product.minimumStockLevel)}
-                    </Badge>
-                  </li>
-                ))}
-              </ul>
+              <>
+                <ul className="divide-y divide-border/70 overflow-hidden rounded-xl border border-border/80">
+                  {stats.lowStockItems.slice(0, 3).map((item) => (
+                    <li
+                      key={item.product.id}
+                      className="flex items-center justify-between gap-3 px-3 py-2.5 transition-colors duration-150 hover:bg-muted/50 sm:gap-4 sm:px-4 sm:py-3"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-xs font-medium sm:text-sm">{item.product.name}</p>
+                        <p className="mt-0.5 font-mono text-[10px] text-muted-foreground sm:text-xs">
+                          {item.product.sku ?? "-"}
+                        </p>
+                      </div>
+                      <Badge variant="warning" className="text-[10px] sm:text-xs">
+                        {formatNumber(item.totalQuantity)} /{" "}
+                        {formatNumber(item.product.minimumStockLevel)}
+                      </Badge>
+                    </li>
+                  ))}
+                </ul>
+                <Button asChild variant="outline" size="sm" className="w-full">
+                  <Link to="/inventory?filter=low">View more</Link>
+                </Button>
+              </>
             )}
           </CardContent>
         </Card>
@@ -173,6 +179,7 @@ export default function DashboardPage() {
               items={velocity?.fast ?? []}
               emptyTitle="No fast movers yet"
               icon={TrendingUp}
+              viewMoreTo="/inventory?filter=fast"
             />
             <VelocityList
               title="Slow-moving Stock"
@@ -180,6 +187,7 @@ export default function DashboardPage() {
               items={velocity?.slow ?? []}
               emptyTitle="No slow movers identified"
               icon={TrendingDown}
+              viewMoreTo="/inventory?filter=slow"
             />
           </>
         )}
@@ -205,13 +213,13 @@ export default function DashboardPage() {
                 type="button"
                 onClick={() => navigate(action.href)}
                 className={cn(
-                  "flex items-center gap-2 rounded-lg border border-border/60 px-3 py-2 text-left text-xs font-medium sm:gap-3 sm:px-4 sm:py-3 sm:text-sm",
-                  "transition-all duration-200 hover:border-primary/15 hover:bg-hover",
-                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+                  "flex items-center gap-2 rounded-xl border border-border/80 bg-surface px-3 py-2 text-left text-xs font-medium shadow-soft sm:gap-3 sm:px-4 sm:py-3 sm:text-sm",
+                  "transition-all duration-150 hover:border-primary/25 hover:bg-primary-muted/40 active:scale-[0.98]",
+                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/25"
                 )}
               >
-                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground sm:h-8 sm:w-8">
-                  <action.icon className="h-3.5 w-3.5 sm:h-4 sm:w-4" aria-hidden="true" />
+                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-primary-muted text-primary sm:h-8 sm:w-8">
+                  <action.icon className="h-3.5 w-3.5 sm:h-4 sm:w-4" strokeWidth={1.75} aria-hidden="true" />
                 </span>
                 {action.label}
               </button>

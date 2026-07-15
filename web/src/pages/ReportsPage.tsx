@@ -70,7 +70,7 @@ function VelocityTable({
                   {items.map((item) => (
                     <TableRow key={item.productId}>
                       <TableCell className="text-sm font-medium">{item.name}</TableCell>
-                      <TableCell className="font-mono text-xs text-muted-foreground">{item.sku ?? "—"}</TableCell>
+                      <TableCell className="font-mono text-xs text-muted-foreground">{item.sku ?? "-"}</TableCell>
                       <TableCell className="text-sm text-muted-foreground">{item.category}</TableCell>
                       <TableCell className="text-right text-sm tabular-nums">{item.activityScore}</TableCell>
                     </TableRow>
@@ -87,7 +87,7 @@ function VelocityTable({
                   <div className="min-w-0">
                     <p className="truncate text-sm font-semibold">{item.name}</p>
                     <p className="truncate text-xs text-muted-foreground">
-                      {item.sku ?? "—"} · {item.category}
+                      {item.sku ?? "-"} · {item.category}
                     </p>
                   </div>
                   <span className="shrink-0 text-sm font-medium tabular-nums">{item.activityScore}</span>

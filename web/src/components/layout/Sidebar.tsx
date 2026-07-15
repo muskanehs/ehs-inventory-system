@@ -6,7 +6,8 @@ import {
   FolderTree,
   LayoutDashboard,
   Package,
-  Warehouse
+  Warehouse,
+  type LucideIcon
 } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import type { Role } from "@/lib/types";
@@ -16,7 +17,7 @@ import { useAuthStore } from "@/store/auth";
 type NavItem = {
   label: string;
   href: string;
-  icon: React.ComponentType<{ className?: string }>;
+  icon: LucideIcon;
   roles?: Role[];
 };
 
@@ -89,38 +90,40 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
 
   const linkClass = (isActive: boolean) =>
     cn(
-      "group flex items-center gap-2.5 rounded-md px-2.5 py-2 text-[13px] font-medium transition-all duration-200",
-      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30",
+      "group flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13.5px] font-medium transition-colors duration-150",
+      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/25",
       isActive
-        ? "border border-primary/15 bg-primary-muted text-primary shadow-sm"
-        : "text-muted-foreground hover:bg-primary-muted/70 hover:text-primary"
+        ? "bg-primary-muted text-primary"
+        : "text-muted-foreground hover:bg-muted hover:text-foreground"
     );
 
   return (
     <aside
       className={cn(
-        "flex h-full w-[240px] flex-col border-r border-sidebar-border bg-sidebar",
+        "flex h-full w-[248px] flex-col border-r border-sidebar-border bg-sidebar",
         className
       )}
     >
-      <div className="flex h-[52px] shrink-0 items-center gap-2.5 border-b border-sidebar-border/60 px-3">
-        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-          <Warehouse className="h-4 w-4" aria-hidden="true" />
+      <div className="flex h-14 shrink-0 items-center gap-3 px-4">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-soft">
+          <Warehouse className="h-4 w-4" strokeWidth={2} aria-hidden="true" />
         </div>
         <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-semibold tracking-tight">Economic Hardware</p>
-          <p className="truncate text-[11px] text-muted-foreground">Store</p>
+          <p className="truncate text-sm font-semibold tracking-tight text-foreground">
+            Economic Hardware
+          </p>
+          <p className="truncate text-[11px] text-muted-foreground">Inventory</p>
         </div>
       </div>
 
-      <ScrollArea className="flex-1 px-2">
-        <nav className="space-y-6 py-2" aria-label="Main navigation">
+      <ScrollArea className="flex-1 px-3">
+        <nav className="space-y-6 py-3" aria-label="Main navigation">
           {visibleNavigation.map((group) => (
             <div key={group.title}>
-              <p className="mb-1.5 px-2.5 text-[11px] font-medium text-muted-foreground/70">
+              <p className="mb-2 px-3 text-[11px] font-medium uppercase tracking-[0.04em] text-muted-foreground/80">
                 {group.title}
               </p>
-              <ul className="space-y-1">
+              <ul className="space-y-0.5">
                 {group.items.map((item) => (
                   <li key={item.href}>
                     <NavLink
@@ -129,7 +132,11 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
                       className={({ isActive }) => linkClass(isActive)}
                     >
                       <item.icon
-                        className="h-4 w-4 shrink-0 transition-colors duration-200 group-aria-[current=page]:text-primary"
+                        className={cn(
+                          "h-[18px] w-[18px] shrink-0 transition-colors duration-150",
+                          "group-aria-[current=page]:text-primary"
+                        )}
+                        strokeWidth={1.75}
                         aria-hidden="true"
                       />
                       <span>{item.label}</span>

@@ -19,7 +19,7 @@ export function CompactStatRow({ stats, loading, className }: CompactStatRowProp
         {Array.from({ length: 3 }).map((_, index) => (
           <div
             key={index}
-            className="rounded-lg border border-border/60 bg-surface p-3 shadow-sm sm:rounded-xl sm:p-4"
+            className="rounded-xl border border-border/80 bg-surface p-3 shadow-soft sm:p-4"
           >
             <Skeleton className="mb-1.5 h-2.5 w-16 sm:mb-2 sm:h-3 sm:w-20" />
             <Skeleton className="h-6 w-12 sm:h-7 sm:w-14" />
@@ -34,7 +34,7 @@ export function CompactStatRow({ stats, loading, className }: CompactStatRowProp
       {stats.map((stat) => (
         <div
           key={stat.label}
-          className="rounded-lg border border-border/60 bg-surface p-3 shadow-sm transition-all duration-200 hover:border-primary/15 hover:shadow-soft sm:rounded-xl sm:p-4"
+          className="rounded-xl border border-border/80 bg-surface p-3 shadow-soft transition-shadow duration-150 hover:shadow-panel sm:p-4"
         >
           <p className="text-[10px] font-medium text-muted-foreground sm:text-xs">{stat.label}</p>
           <p className="mt-1 text-xl font-semibold tabular-nums tracking-tight text-foreground sm:mt-1.5 sm:text-2xl">

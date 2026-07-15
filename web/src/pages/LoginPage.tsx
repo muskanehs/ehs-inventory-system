@@ -36,12 +36,16 @@ function EnterpriseBackdrop() {
   return (
     <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
       <div className="absolute inset-0 bg-background" />
+      <div className="absolute -left-24 top-0 h-[420px] w-[420px] rounded-full bg-primary/[0.12] blur-3xl" />
+      <div className="absolute -right-16 bottom-0 h-[360px] w-[360px] rounded-full bg-sky-300/20 blur-3xl dark:bg-primary/10" />
       <div
-        className="absolute inset-0 opacity-[0.35] dark:opacity-[0.08]"
+        className="absolute inset-0 opacity-[0.4] dark:opacity-[0.08]"
         style={{
           backgroundImage:
             "linear-gradient(hsl(var(--border)) 1px, transparent 1px), linear-gradient(90deg, hsl(var(--border)) 1px, transparent 1px)",
-          backgroundSize: "48px 48px"
+          backgroundSize: "56px 56px",
+          maskImage: "radial-gradient(ellipse at center, black 30%, transparent 75%)",
+          WebkitMaskImage: "radial-gradient(ellipse at center, black 30%, transparent 75%)"
         }}
       />
     </div>
@@ -55,12 +59,12 @@ function AppLogo({ size = "md" }: { size?: "sm" | "md" | "lg" }) {
   return (
     <div
       className={cn(
-        "flex shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-sm",
+        "flex shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-soft",
         dims[size]
       )}
       aria-hidden="true"
     >
-      <Warehouse className={icon[size]} />
+      <Warehouse className={icon[size]} strokeWidth={1.75} />
     </div>
   );
 }
@@ -72,7 +76,7 @@ function AppHeader({ className }: { className?: string }) {
       <h1 className="mt-4 text-base font-semibold tracking-tight text-foreground">
         Economic Hardware Store
       </h1>
-      <p className="mt-1 text-sm text-muted-foreground">Enterprise Inventory Platform</p>
+      <p className="mt-1 text-sm text-muted-foreground">Inventory platform</p>
     </header>
   );
 }
@@ -81,8 +85,9 @@ function PageFooter({ className }: { className?: string }) {
   return (
     <footer className={cn("flex flex-col items-center text-center", className)}>
       <div className="mb-4 h-px w-16 bg-border" aria-hidden="true" />
-      <p className="text-xs text-muted-foreground">Version 1.0</p>
-      <p className="mt-0.5 text-xs text-muted-foreground/60">Economic Hardware Store</p>
+      <p className="text-xs text-muted-foreground">
+        Secure access for store and godown operations.
+      </p>
     </footer>
   );
 }
@@ -130,7 +135,7 @@ function FilledInput({
         autoComplete={autoComplete}
         required
         disabled={disabled}
-        className={cn("h-11 bg-muted/50 pl-10", trailing && "pr-10")}
+        className={cn("h-11 bg-muted/40 pl-10", trailing && "pr-10")}
       />
       {trailing}
     </div>
@@ -224,15 +229,17 @@ function LoginCard({ className }: { className?: string }) {
   return (
     <div
       className={cn(
-        "w-full max-w-[400px] animate-fade-up rounded-lg border border-border/70 bg-card p-6 shadow-panel sm:p-7",
+        "w-full max-w-[400px] animate-fade-up rounded-xl border border-border/80 bg-surface p-6 shadow-panel sm:p-7",
         className
       )}
     >
       <div className="mb-6">
-        <h2 className="text-2xl font-semibold tracking-tight text-foreground sm:text-[28px]">
+        <h2 className="text-2xl font-semibold tracking-tight text-foreground sm:text-[1.75rem]">
           Welcome back
         </h2>
-        <p className="mt-1.5 text-sm text-muted-foreground">Sign in to your account to continue.</p>
+        <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
+          Sign in to your account to continue.
+        </p>
       </div>
 
       <form onSubmit={onSubmit} className="space-y-4" noValidate>
@@ -332,7 +339,7 @@ const DESKTOP_FEATURES = [
 function DesktopBrandPanel() {
   return (
     <aside
-      className="relative hidden min-h-0 flex-col justify-between overflow-hidden border-r border-border/70 bg-card lg:flex"
+      className="relative hidden min-h-0 flex-col justify-between overflow-hidden border-r border-border/80 bg-surface lg:flex"
       aria-label="Application branding"
     >
       <EnterpriseBackdrop />
@@ -341,7 +348,7 @@ function DesktopBrandPanel() {
           <AppLogo size="md" />
           <div>
             <p className="text-sm font-semibold text-foreground">Economic Hardware Store</p>
-            <p className="text-xs text-muted-foreground">Enterprise Inventory Platform</p>
+            <p className="text-xs text-muted-foreground">Inventory platform</p>
           </div>
         </div>
 
@@ -356,8 +363,8 @@ function DesktopBrandPanel() {
         <ul className="mt-8 space-y-4">
           {DESKTOP_FEATURES.map(({ icon: Icon, text }) => (
             <li key={text} className="flex items-start gap-3">
-              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
-                <Icon className="h-4 w-4" aria-hidden="true" />
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-primary-muted text-primary">
+                <Icon className="h-4 w-4" strokeWidth={1.75} aria-hidden="true" />
               </span>
               <span className="pt-1 text-sm text-foreground/80">{text}</span>
             </li>
@@ -415,7 +422,7 @@ function DesktopLoginLayout() {
               <AppLogo size="md" />
             </div>
             <p className="mt-3 text-sm font-semibold text-foreground">Economic Hardware Store</p>
-            <p className="mt-0.5 text-xs text-muted-foreground">Enterprise Inventory Platform</p>
+            <p className="mt-0.5 text-xs text-muted-foreground">Inventory platform</p>
           </div>
           <LoginCard />
         </div>

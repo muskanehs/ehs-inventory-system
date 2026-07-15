@@ -10,7 +10,7 @@ export function Table({ className, embedded, ...props }: TableProps) {
   if (embedded) return table;
 
   return (
-    <div className="relative w-full overflow-auto rounded-lg border border-border/60 bg-surface shadow-sm">
+    <div className="relative w-full overflow-auto rounded-xl border border-border/80 bg-surface shadow-soft">
       {table}
     </div>
   );
@@ -18,13 +18,7 @@ export function Table({ className, embedded, ...props }: TableProps) {
 
 export function TableHeader({ className, ...props }: React.HTMLAttributes<HTMLTableSectionElement>) {
   return (
-    <thead
-      className={cn(
-        "[&_tr]:border-b border-border/60 bg-primary-muted/40",
-        className
-      )}
-      {...props}
-    />
+    <thead className={cn("[&_tr]:border-b border-border/70 bg-muted/40", className)} {...props} />
   );
 }
 
@@ -36,7 +30,7 @@ export function TableRow({ className, ...props }: React.HTMLAttributes<HTMLTable
   return (
     <tr
       className={cn(
-        "border-b border-border/50 transition-colors duration-200 hover:bg-hover data-[state=selected]:bg-primary-muted/60",
+        "border-b border-border/60 transition-colors duration-150 hover:bg-muted/50 data-[state=selected]:bg-primary-muted/60",
         className
       )}
       {...props}
@@ -48,7 +42,7 @@ export function TableHead({ className, ...props }: React.ThHTMLAttributes<HTMLTa
   return (
     <th
       className={cn(
-        "h-10 px-4 text-left align-middle text-[11px] font-semibold uppercase tracking-wider text-muted-foreground",
+        "h-10 px-4 text-left align-middle text-[11px] font-medium tracking-wide text-muted-foreground",
         className
       )}
       {...props}

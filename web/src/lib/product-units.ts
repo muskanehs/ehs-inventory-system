@@ -1,4 +1,4 @@
-/** Allowed quantity / unit types for products — keep in sync with backend PRODUCT_UNITS. */
+/** Allowed quantity / unit types for products - keep in sync with backend PRODUCT_UNITS. */
 export const PRODUCT_UNITS = [
   "Pc",
   "Box",

@@ -180,7 +180,7 @@ export default function ProductsPage() {
     <PageShell>
       <PageHeader
         title="Products"
-        description="Manage your product catalog — add, edit, and remove products."
+        description="Manage your product catalog - add, edit, and remove products."
         actions={
           <>
             <ExportButton
@@ -272,10 +272,10 @@ export default function ProductsPage() {
                       <TableRow key={product.id}>
                         <TableCell className="px-4 py-2.5 font-medium">{product.name}</TableCell>
                         <TableCell className="px-4 py-2.5 font-mono text-xs text-muted-foreground">
-                          {product.sku ?? "—"}
+                          {product.sku ?? "-"}
                         </TableCell>
                         <TableCell className="px-4 py-2.5 text-muted-foreground">
-                          {product.category?.name ?? "—"}
+                          {product.category?.name ?? "-"}
                         </TableCell>
                         <TableCell className="px-4 py-2.5">{product.unit}</TableCell>
                         <TableCell className="px-4 py-2.5 text-right tabular-nums">
@@ -307,7 +307,7 @@ export default function ProductsPage() {
                           {product.isActive ? "Active" : "Inactive"}
                         </Badge>
                       </div>
-                      <p className="mt-1 font-mono text-xs text-muted-foreground">{product.sku ?? "—"}</p>
+                      <p className="mt-1 font-mono text-xs text-muted-foreground">{product.sku ?? "-"}</p>
                       <p className="mt-1 text-xs text-muted-foreground">
                         {product.category?.name ?? "Uncategorized"} · {product.unit} · Min{" "}
                         {formatNumber(product.minimumStockLevel)}

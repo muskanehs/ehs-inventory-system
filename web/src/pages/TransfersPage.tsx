@@ -302,7 +302,7 @@ export default function TransfersPage() {
                 onApprove={() =>
                   runAction(
                     () => approve.mutateAsync(transfer.id),
-                    "Transfer approved — stock updated",
+                    "Transfer approved - stock updated",
                     "Approve failed"
                   )
                 }

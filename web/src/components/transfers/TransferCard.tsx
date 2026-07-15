@@ -103,8 +103,8 @@ export function TransferCard({
 }: TransferCardProps) {
   const requester = transfer.requestedByUser?.name ?? "Unknown";
   const isCustomer = transfer.transferType === "CUSTOMER";
-  const fromName = transfer.fromLocation?.name ?? "—";
-  const toName = transfer.toLocation?.name ?? "—";
+  const fromName = transfer.fromLocation?.name ?? "-";
+  const toName = transfer.toLocation?.name ?? "-";
   const itemCount = transfer.items.length;
   const totalQty = transfer.items.reduce((sum, item) => sum + item.quantity, 0);
 
@@ -223,7 +223,7 @@ export function TransferCard({
                     <CompactInfoItem
                       icon={Phone}
                       label="Phone"
-                      value={transfer.customerPhone ?? "—"}
+                      value={transfer.customerPhone ?? "-"}
                     />
                   </div>
                   <Button
@@ -270,10 +270,10 @@ export function TransferCard({
                         {transfer.items.map((item) => (
                           <TableRow key={item.id}>
                             <TableCell className="px-4 py-2.5 font-medium">
-                              {item.product?.name ?? "—"}
+                              {item.product?.name ?? "-"}
                             </TableCell>
                             <TableCell className="px-4 py-2.5 font-mono text-xs text-muted-foreground">
-                              {item.product?.sku ?? "—"}
+                              {item.product?.sku ?? "-"}
                             </TableCell>
                             <TableCell className="px-4 py-2.5 text-right tabular-nums">
                               <span className="font-medium">{formatNumber(item.quantity)}</span>{" "}
@@ -295,10 +295,10 @@ export function TransferCard({
                       >
                         <div className="min-w-0 flex-1">
                           <p className="truncate text-sm font-medium leading-snug">
-                            {item.product?.name ?? "—"}
+                            {item.product?.name ?? "-"}
                           </p>
                           <p className="mt-0.5 truncate font-mono text-[11px] text-muted-foreground">
-                            {item.product?.sku ?? "—"}
+                            {item.product?.sku ?? "-"}
                           </p>
                         </div>
                         <p className="shrink-0 text-right text-sm tabular-nums">
@@ -316,16 +316,16 @@ export function TransferCard({
               {hasDriverInfo && (
                 <section>
                   <div className="info-tint flex flex-col gap-4 px-4 py-3 sm:flex-row sm:items-start sm:gap-6 sm:px-5 sm:py-4">
-                    <CompactInfoItem icon={User} label="Driver" value={transfer.driverName ?? "—"} />
+                    <CompactInfoItem icon={User} label="Driver" value={transfer.driverName ?? "-"} />
                     <CompactInfoItem
                       icon={Truck}
                       label="Vehicle"
-                      value={transfer.vehicleNumber ?? "—"}
+                      value={transfer.vehicleNumber ?? "-"}
                     />
                     <CompactInfoItem
                       icon={Phone}
                       label="Contact"
-                      value={transfer.vehicleContact ?? "—"}
+                      value={transfer.vehicleContact ?? "-"}
                     />
                   </div>
                 </section>

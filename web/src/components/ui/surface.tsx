@@ -9,7 +9,7 @@ export function Surface({ className, padding = true, children, ...props }: Surfa
   return (
     <div
       className={cn(
-        "rounded-xl border border-border/60 bg-surface shadow-sm transition-all duration-200 hover:shadow-soft",
+        "rounded-xl border border-border/80 bg-surface shadow-soft transition-shadow duration-150 hover:shadow-panel",
         padding && "p-4",
         className
       )}
@@ -24,7 +24,7 @@ export function DataPanel({ className, children, ...props }: React.HTMLAttribute
   return (
     <div
       className={cn(
-        "overflow-hidden rounded-xl border border-border/60 bg-surface shadow-sm transition-all duration-200 hover:shadow-soft",
+        "overflow-hidden rounded-xl border border-border/80 bg-surface shadow-soft transition-shadow duration-150",
         className
       )}
       {...props}
@@ -36,7 +36,11 @@ export function DataPanel({ className, children, ...props }: React.HTMLAttribute
 
 export function FilterBar({ className, children, ...props }: React.HTMLAttributes<HTMLDivElement>) {
   return (
-    <Surface padding className={cn("bg-primary-muted/20", className)} {...props}>
+    <Surface
+      padding
+      className={cn("border-border/70 bg-primary-muted/30 shadow-none hover:shadow-none", className)}
+      {...props}
+    >
       {children}
     </Surface>
   );
@@ -52,7 +56,7 @@ export function SectionHeader({
   action?: React.ReactNode;
 }) {
   return (
-    <div className="flex items-start justify-between gap-4 rounded-lg bg-primary-muted/30 px-3 py-2.5">
+    <div className="flex items-start justify-between gap-4 rounded-xl bg-muted/60 px-3.5 py-3">
       <div className="min-w-0 space-y-0.5">
         <h2 className="text-sm font-semibold tracking-tight text-foreground">{title}</h2>
         {description && (

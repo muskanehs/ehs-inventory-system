@@ -42,7 +42,7 @@ function GodownCard({
   godown: GodownSummary;
   onEdit: (godown: GodownSummary) => void;
 }) {
-  const updatedLabel = godown.updatedAt ? formatRelativeDate(godown.updatedAt) : "—";
+  const updatedLabel = godown.updatedAt ? formatRelativeDate(godown.updatedAt) : "-";
 
   return (
     <div className="flex min-h-[96px] items-center gap-3 rounded-lg border border-border/70 bg-card px-3 py-3 shadow-sm transition-colors hover:bg-muted/20 sm:px-4">

@@ -61,47 +61,55 @@ export function TopNav() {
 
   return (
     <>
-      <header className="sticky top-0 z-40 flex h-[52px] items-center gap-3 border-b border-border/60 bg-card/90 px-4 backdrop-blur-xl md:px-6">
+      <header className="sticky top-0 z-40 flex h-14 items-center gap-3 border-b border-border/70 bg-surface/85 px-4 backdrop-blur-md sm:px-6">
         <Button
           variant="ghost"
           size="icon"
-          className="h-8 w-8 md:hidden"
+          className="h-9 w-9 md:hidden"
           onClick={() => setMobileOpen(true)}
           aria-label="Open navigation menu"
         >
-          <Menu className="h-4 w-4" />
+          <Menu className="h-4 w-4" strokeWidth={1.75} />
         </Button>
 
         <SearchInput
           value={search}
           onChange={setSearch}
-          placeholder="Search..."
-          className="min-w-0 flex-1 max-w-md"
+          placeholder="Search inventory, transfers..."
+          className="min-w-0 flex-1 max-w-lg"
           id="global-search"
         />
 
-        <div className="ml-auto flex items-center gap-1">
+        <div className="ml-auto flex items-center gap-1.5">
           <UserSwitcher />
 
           <Button
             variant="ghost"
             size="icon"
-            className="h-8 w-8 text-muted-foreground"
+            className="h-9 w-9 text-muted-foreground"
             onClick={toggleTheme}
             aria-label={theme === "light" ? "Switch to dark mode" : "Switch to light mode"}
           >
-            {theme === "light" ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
+            {theme === "light" ? (
+              <Moon className="h-4 w-4" strokeWidth={1.75} />
+            ) : (
+              <Sun className="h-4 w-4" strokeWidth={1.75} />
+            )}
           </Button>
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="h-8 gap-2 px-2" aria-label="User menu">
+              <Button
+                variant="ghost"
+                className="h-9 gap-2 rounded-lg px-1.5 sm:px-2"
+                aria-label="User menu"
+              >
                 <Avatar className="h-7 w-7">
-                  <AvatarFallback className="bg-primary/10 text-[11px] font-medium text-primary">
+                  <AvatarFallback className="bg-primary-muted text-[11px] font-semibold text-primary">
                     {initials}
                   </AvatarFallback>
                 </Avatar>
-                <span className="hidden max-w-[120px] truncate text-sm font-medium md:inline-block">
+                <span className="hidden max-w-[140px] truncate text-sm font-medium text-foreground md:inline-block">
                   {userName ?? "User"}
                 </span>
               </Button>
@@ -115,7 +123,7 @@ export function TopNav() {
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={handleLogout}>
-                <LogOut className="mr-2 h-4 w-4" />
+                <LogOut className="mr-2 h-4 w-4" strokeWidth={1.75} />
                 Log out
               </DropdownMenuItem>
             </DropdownMenuContent>

@@ -7,7 +7,7 @@ type TablePaginationProps = {
   totalItems: number;
   pageSize: number;
   onPageChange: (page: number) => void;
-  /** `footer` — bottom of a panel; `standalone` — below a list outside a panel */
+  /** `footer` - bottom of a panel; `standalone` - below a list outside a panel */
   variant?: "footer" | "standalone";
   className?: string;
 };
@@ -32,12 +32,12 @@ export function TablePagination({
         "flex flex-col items-center gap-3 px-3 py-2.5 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between sm:px-4 sm:py-3 sm:text-sm",
         variant === "footer"
           ? "border-t border-border/60 bg-muted/20"
-          : "mt-4 rounded-lg border border-border/70 bg-card",
+          : "mt-4 rounded-xl border border-border/80 bg-surface shadow-soft",
         className
       )}
     >
       <span className="text-center">
-        Showing {listStart}–{listEnd} of {totalItems}
+        Showing {listStart}-{listEnd} of {totalItems}
       </span>
       <div className="flex items-center justify-center gap-2">
         <Button

@@ -7,11 +7,19 @@ export function AuthBackdrop() {
     <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
       <div className="absolute inset-0 bg-background" />
       <div
-        className="absolute inset-0 opacity-[0.35] dark:opacity-[0.08]"
+        className="absolute -left-24 top-0 h-[420px] w-[420px] rounded-full bg-primary/[0.12] blur-3xl"
+      />
+      <div
+        className="absolute -right-16 bottom-0 h-[360px] w-[360px] rounded-full bg-sky-300/20 blur-3xl dark:bg-primary/10"
+      />
+      <div
+        className="absolute inset-0 opacity-[0.4] dark:opacity-[0.08]"
         style={{
           backgroundImage:
             "linear-gradient(hsl(var(--border)) 1px, transparent 1px), linear-gradient(90deg, hsl(var(--border)) 1px, transparent 1px)",
-          backgroundSize: "48px 48px"
+          backgroundSize: "56px 56px",
+          maskImage: "radial-gradient(ellipse at center, black 30%, transparent 75%)",
+          WebkitMaskImage: "radial-gradient(ellipse at center, black 30%, transparent 75%)"
         }}
       />
     </div>
@@ -25,12 +33,12 @@ export function AuthLogo({ size = "md" }: { size?: "sm" | "md" | "lg" }) {
   return (
     <div
       className={cn(
-        "flex shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-sm",
+        "flex shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-soft",
         dims[size]
       )}
       aria-hidden="true"
     >
-      <Warehouse className={icon[size]} />
+      <Warehouse className={icon[size]} strokeWidth={1.75} />
     </div>
   );
 }
@@ -42,7 +50,7 @@ export function AuthHeader({ className }: { className?: string }) {
       <h1 className="mt-4 text-base font-semibold tracking-tight text-foreground">
         Economic Hardware Store
       </h1>
-      <p className="mt-1 text-sm text-muted-foreground">Enterprise Inventory Platform</p>
+      <p className="mt-1 text-sm text-muted-foreground">Inventory platform</p>
     </header>
   );
 }
@@ -50,7 +58,7 @@ export function AuthHeader({ className }: { className?: string }) {
 export function AuthFooter({ className }: { className?: string }) {
   return (
     <p className={cn("text-center text-xs text-muted-foreground", className)}>
-      Secure inventory access for store and godown operations.
+      Secure access for store and godown operations.
     </p>
   );
 }
@@ -69,15 +77,15 @@ export function AuthCard({
   return (
     <div
       className={cn(
-        "w-full max-w-[400px] animate-fade-up rounded-lg border border-border/70 bg-card p-6 shadow-panel sm:p-7",
+        "w-full max-w-[400px] animate-fade-up rounded-xl border border-border/80 bg-surface p-6 shadow-panel sm:p-7",
         className
       )}
     >
       <div className="mb-6">
-        <h2 className="text-2xl font-semibold tracking-tight text-foreground sm:text-[28px]">
+        <h2 className="text-2xl font-semibold tracking-tight text-foreground sm:text-[1.75rem]">
           {title}
         </h2>
-        <p className="mt-1.5 text-sm text-muted-foreground">{description}</p>
+        <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">{description}</p>
       </div>
       {children}
     </div>
@@ -86,7 +94,7 @@ export function AuthCard({
 
 export function AuthShell({ children }: { children: ReactNode }) {
   return (
-    <div className="relative flex min-h-screen flex-col items-center justify-center px-4 py-10">
+    <div className="relative flex min-h-[100dvh] flex-col items-center justify-center px-4 py-10">
       <AuthBackdrop />
       <div className="relative z-10 flex w-full max-w-[400px] flex-col items-center gap-6">
         <AuthHeader />

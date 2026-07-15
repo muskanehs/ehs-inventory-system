@@ -13,6 +13,13 @@ import { PageShell } from "@/components/PageShell";
 import { FilterBar } from "@/components/SearchInput";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Accordion,
@@ -22,7 +29,7 @@ import {
 } from "@/components/ui/accordion";
 import { AddStockDialog } from "@/components/inventory/StockDialogs";
 import { ProductFormDialog } from "@/components/products/ProductFormDialog";
-import { useGroupedInventory } from "@/hooks/use-inventory";
+import { useGroupedInventory, type StockListFilter } from "@/hooks/use-inventory";
 import { useGlobalSearch } from "@/hooks/use-global-search";
 import { useLocations } from "@/hooks/use-locations";
 import { useLocationScope } from "@/hooks/use-location-scope";
@@ -35,6 +42,18 @@ import { useAuthStore } from "@/store/auth";
 import { useSearchStore } from "@/store/search";
 
 const PAGE_SIZE = 10;
+
+const STOCK_FILTERS: { value: StockListFilter; label: string }[] = [
+  { value: "all", label: "All stock" },
+  { value: "low", label: "Low stock" },
+  { value: "fast", label: "Fast moving" },
+  { value: "slow", label: "Slow moving" }
+];
+
+function parseStockFilter(value: string | null): StockListFilter {
+  if (value === "low" || value === "fast" || value === "slow") return value;
+  return "all";
+}
 
 type StockViewMode = "scoped" | "overall";
 
@@ -62,7 +81,7 @@ export default function InventoryPage() {
   const role = useAuthStore((s) => s.role);
   const canManageProducts = role === "ADMIN" || role === "STORE_MANAGER";
 
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const setQuery = useSearchStore((s) => s.setQuery);
   const { debouncedQuery } = useGlobalSearch();
   const [page, setPage] = useState(1);
@@ -71,6 +90,8 @@ export default function InventoryPage() {
   const [addProductOpen, setAddProductOpen] = useState(false);
   const [selectedProductId, setSelectedProductId] = useState<string | undefined>(undefined);
 
+  const stockFilter = parseStockFilter(searchParams.get("filter"));
+
   const listLocationId =
     stockView === "scoped" && scopedLocationId ? scopedLocationId : undefined;
 
@@ -78,7 +99,8 @@ export default function InventoryPage() {
     page,
     limit: PAGE_SIZE,
     search: debouncedQuery,
-    locationId: listLocationId
+    locationId: listLocationId,
+    filter: stockFilter
   });
   const { data: locations = [] } = useLocations();
 
@@ -89,7 +111,20 @@ export default function InventoryPage() {
 
   useEffect(() => {
     setPage(1);
-  }, [debouncedQuery]);
+  }, [debouncedQuery, stockFilter]);
+
+  const setStockFilter = (next: StockListFilter) => {
+    setSearchParams(
+      (prev) => {
+        const params = new URLSearchParams(prev);
+        if (next === "all") params.delete("filter");
+        else params.set("filter", next);
+        return params;
+      },
+      { replace: true }
+    );
+    setPage(1);
+  };
 
   const paginated = useMemo(() => {
     const items = groupedPage?.items ?? [];
@@ -137,8 +172,21 @@ export default function InventoryPage() {
         }
       />
 
-      {isGodownScoped && (
-        <FilterBar>
+      <FilterBar>
+        <Select value={stockFilter} onValueChange={(v) => setStockFilter(parseStockFilter(v))}>
+          <SelectTrigger className="h-9 w-full max-w-[200px] bg-surface sm:w-[200px]" aria-label="Stock filter">
+            <SelectValue placeholder="All stock" />
+          </SelectTrigger>
+          <SelectContent>
+            {STOCK_FILTERS.map((option) => (
+              <SelectItem key={option.value} value={option.value}>
+                {option.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        {isGodownScoped && (
           <div className="flex w-full max-w-xs shrink-0 rounded-md border border-border/70 bg-muted/30 p-0.5">
             <Button
               type="button"
@@ -171,12 +219,14 @@ export default function InventoryPage() {
               Overall Stock
             </Button>
           </div>
-        </FilterBar>
-      )}
+        )}
+      </FilterBar>
 
       <section className="space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold tracking-tight text-foreground">Inventory List</h2>
+          <h2 className="text-sm font-semibold tracking-tight text-foreground">
+            {STOCK_FILTERS.find((f) => f.value === stockFilter)?.label ?? "Inventory List"}
+          </h2>
         </div>
 
         {isLoading ? (
@@ -203,9 +253,16 @@ export default function InventoryPage() {
           <EmptyState
             icon={Package}
             title="No products found"
-            description="Try a different search or add a product to get started."
-            actionLabel="Add Stock"
-            onAction={() => setAddStockOpen(true)}
+            description={
+              stockFilter === "all"
+                ? "Try a different search or add a product to get started."
+                : "No products match this stock filter. Try another filter or clear it."
+            }
+            actionLabel={stockFilter === "all" ? "Add Stock" : "Show all stock"}
+            onAction={() => {
+              if (stockFilter === "all") setAddStockOpen(true);
+              else setStockFilter("all");
+            }}
           />
         ) : (
           <>
@@ -239,7 +296,7 @@ export default function InventoryPage() {
                           </Badge>
                         </div>
                         <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                          <span className="font-mono">{group.product.sku ?? "—"}</span>
+                          <span className="font-mono">{group.product.sku ?? "-"}</span>
                           <span aria-hidden="true"> • </span>
                           {categoryName}
                         </p>

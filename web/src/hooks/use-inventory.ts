@@ -21,11 +21,14 @@ export function useInventory(locationId?: string) {
   });
 }
 
+export type StockListFilter = "all" | "low" | "fast" | "slow";
+
 export function useGroupedInventory(params: {
   page: number;
   limit: number;
   search: string;
   locationId?: string;
+  filter?: StockListFilter;
 }) {
   return useQuery({
     queryKey: ["inventory", "grouped", params],
@@ -37,7 +40,8 @@ export function useGroupedInventory(params: {
             page: params.page,
             limit: params.limit,
             search: params.search || undefined,
-            locationId: params.locationId
+            locationId: params.locationId,
+            filter: params.filter && params.filter !== "all" ? params.filter : undefined
           }
         }
       );

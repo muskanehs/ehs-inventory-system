@@ -105,26 +105,32 @@ model Category {
 }
 
 model Product {
-  id                String          @id @default(cuid())
-  name              String
-  sku               String?
-  barcode           String?
-  categoryId        String
-  unit              String
-  minimumStockLevel Int             @default(0)
-  isActive          Boolean         @default(true)
-  isDeleted         Boolean         @default(false)
-  deletedAt         DateTime?
-  deletedBy         String?
-  createdAt         DateTime        @default(now())
-  updatedAt         DateTime        @updatedAt
-  category          Category        @relation(fields: [categoryId], references: [id], onDelete: Restrict)
-  inventory         Inventory[]
-  movements         StockMovement[]
+  id                 String          @id @default(cuid())
+  name               String
+  sku                String?
+  barcode            String?
+  categoryId         String
+  unit               String
+  minimumStockLevel  Int             @default(0)
+  isActive           Boolean         @default(true)
+  isFastMoving       Boolean         @default(false)
+  isSlowMoving       Boolean         @default(false)
+  velocityScore      Int             @default(0)
+  velocityComputedAt DateTime?
+  isDeleted          Boolean         @default(false)
+  deletedAt          DateTime?
+  deletedBy          String?
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+  category           Category        @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  inventory          Inventory[]
+  movements          StockMovement[]
 
   @@index([sku])
   @@index([barcode])
   @@index([isDeleted])
+  @@index([isFastMoving])
+  @@index([isSlowMoving])
 }
 
 model Inventory {

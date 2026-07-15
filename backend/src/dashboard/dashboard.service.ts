@@ -92,7 +92,7 @@ export class DashboardService {
       lowStockCount: lowStockAll.length,
       locationCount,
       pendingTransfers,
-      lowStockItems: lowStockAll.slice(0, 5)
+      lowStockItems: lowStockAll.slice(0, 3)
     };
   }
 }

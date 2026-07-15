@@ -351,7 +351,7 @@ export default function CategoriesPage() {
                     >
                       <TableCell className="px-4 py-2.5 font-medium">{category.name}</TableCell>
                       <TableCell className="max-w-[240px] truncate px-4 py-2.5 text-muted-foreground">
-                        {category.description || "—"}
+                        {category.description || "-"}
                       </TableCell>
                       <TableCell className="px-4 py-2.5 text-center tabular-nums">
                         {category._count?.products ?? 0}

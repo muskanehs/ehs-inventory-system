@@ -1,5 +1,5 @@
-import { Injectable } from "@nestjs/common";
-import { LocationType, MovementType, TransferStatus } from "@prisma/client";
+import { Injectable, Logger } from "@nestjs/common";
+import { MovementType, TransferStatus } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
 import { NOT_DELETED } from "../common/utils/soft-delete";
 import { VELOCITY_REPORT_DAYS } from "../common/constants/product-units";
@@ -21,6 +21,8 @@ export type VelocityReport = {
 
 @Injectable()
 export class ReportsService {
+  private readonly logger = new Logger(ReportsService.name);
+
   constructor(private readonly prisma: PrismaService) {}
 
   currentInventory(filters?: { categoryId?: string; locationId?: string }) {
@@ -38,6 +40,69 @@ export class ReportsService {
   }
 
   async velocityReport(days = VELOCITY_REPORT_DAYS): Promise<VelocityReport> {
+    const report = await this.computeVelocity(days);
+    return {
+      fast: report.fast,
+      slow: report.slow,
+      periodDays: days
+    };
+  }
+
+  /** Compute last-N-day velocity and persist flags used by stock filters. */
+  async refreshVelocitySnapshot(days = VELOCITY_REPORT_DAYS): Promise<VelocityReport> {
+    const report = await this.computeVelocity(days);
+    const computedAt = new Date();
+    const fastIds = report.fast.map((p) => p.productId);
+    const slowIds = report.slow.map((p) => p.productId);
+    const scored = [...report.fast, ...report.slow];
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.product.updateMany({
+        where: NOT_DELETED,
+        data: {
+          isFastMoving: false,
+          isSlowMoving: false,
+          velocityScore: 0,
+          velocityComputedAt: computedAt
+        }
+      });
+
+      if (fastIds.length > 0) {
+        await tx.product.updateMany({
+          where: { id: { in: fastIds } },
+          data: { isFastMoving: true }
+        });
+      }
+      if (slowIds.length > 0) {
+        await tx.product.updateMany({
+          where: { id: { in: slowIds } },
+          data: { isSlowMoving: true }
+        });
+      }
+
+      for (const item of scored) {
+        await tx.product.update({
+          where: { id: item.productId },
+          data: { velocityScore: item.activityScore }
+        });
+      }
+    });
+
+    this.logger.log(
+      `Velocity snapshot refreshed (days=${days}): fast=${fastIds.length}, slow=${slowIds.length}`
+    );
+
+    return {
+      fast: report.fast,
+      slow: report.slow,
+      periodDays: days
+    };
+  }
+
+  private async computeVelocity(days: number): Promise<{
+    fast: ProductVelocity[];
+    slow: ProductVelocity[];
+  }> {
     const since = new Date();
     since.setDate(since.getDate() - days);
 
@@ -94,7 +159,9 @@ export class ReportsService {
       currentStock: stockMap.get(p.id) ?? 0
     }));
 
-    const active = scored.filter((p) => p.activityScore > 0).sort((a, b) => b.activityScore - a.activityScore);
+    const active = scored
+      .filter((p) => p.activityScore > 0)
+      .sort((a, b) => b.activityScore - a.activityScore);
     const withStock = scored.filter((p) => p.currentStock > 0);
 
     const fastCount = Math.max(1, Math.ceil(active.length * 0.25));
@@ -102,9 +169,8 @@ export class ReportsService {
     const slowCount = Math.max(1, Math.ceil(slowPool.length * 0.25));
 
     return {
-      fast: active.slice(0, fastCount),
-      slow: slowPool.slice(0, slowCount),
-      periodDays: days
+      fast: active.length === 0 ? [] : active.slice(0, fastCount),
+      slow: slowPool.length === 0 ? [] : slowPool.slice(0, slowCount)
     };
   }
 }

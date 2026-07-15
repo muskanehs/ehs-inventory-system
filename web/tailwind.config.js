@@ -5,7 +5,14 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        sans: ["Inter", "system-ui", "sans-serif"]
+        sans: [
+          '"Plus Jakarta Sans"',
+          "ui-sans-serif",
+          "system-ui",
+          "-apple-system",
+          "Segoe UI",
+          "sans-serif"
+        ]
       },
       colors: {
         border: "hsl(var(--border))",
@@ -78,9 +85,9 @@ export default {
         sm: "calc(var(--radius) - 4px)"
       },
       boxShadow: {
-        soft: "0 1px 2px rgba(0,0,0,0.04), 0 4px 16px rgba(0,0,0,0.05)",
-        panel: "0 1px 3px rgba(0,0,0,0.05), 0 8px 24px rgba(0,0,0,0.07)",
-        lift: "0 2px 4px rgba(0,0,0,0.04), 0 12px 28px rgba(0,0,0,0.08)"
+        soft: "0 1px 2px rgba(15, 23, 42, 0.04), 0 4px 12px rgba(15, 23, 42, 0.04)",
+        panel: "0 1px 2px rgba(15, 23, 42, 0.03), 0 8px 24px rgba(15, 23, 42, 0.06)",
+        lift: "0 2px 8px rgba(15, 23, 42, 0.06), 0 12px 32px rgba(15, 23, 42, 0.08)"
       },
       keyframes: {
         "accordion-down": {
@@ -92,26 +99,27 @@ export default {
           to: { height: "0" }
         },
         "fade-in": {
-          from: { opacity: "0", transform: "translateY(6px)" },
+          from: { opacity: "0", transform: "translateY(4px)" },
           to: { opacity: "1", transform: "translateY(0)" }
         },
         "slide-in-right": {
-          from: { opacity: "0", transform: "translateX(16px)" },
+          from: { opacity: "0", transform: "translateX(12px)" },
           to: { opacity: "1", transform: "translateX(0)" }
         },
         "fade-up": {
-          from: { opacity: "0", transform: "translateY(20px)" },
+          from: { opacity: "0", transform: "translateY(12px)" },
           to: { opacity: "1", transform: "translateY(0)" }
         }
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
-        "fade-in": "fade-in 0.35s ease-out",
-        "slide-in-right": "slide-in-right 0.4s ease-out 0.05s both",
-        "fade-up": "fade-up 0.4s ease-out 0.1s both"
+        "fade-in": "fade-in 0.2s ease-out",
+        "slide-in-right": "slide-in-right 0.25s ease-out both",
+        "fade-up": "fade-up 0.25s ease-out both"
       },
       transitionDuration: {
+        150: "150ms",
         200: "200ms"
       }
     }

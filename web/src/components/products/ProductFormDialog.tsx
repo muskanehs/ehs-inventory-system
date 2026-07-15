@@ -302,7 +302,7 @@ export function ProductFormDialog({ open, onOpenChange, product }: ProductFormDi
         <DialogHeader className="shrink-0 space-y-1 border-b px-6 py-5 pr-14 text-left">
           <DialogTitle>Add Products</DialogTitle>
           <DialogDescription>
-            Add one or more products. Each row is a product — use Add product for more lines.
+            Add one or more products. Each row is a product - use Add product for more lines.
           </DialogDescription>
         </DialogHeader>
 

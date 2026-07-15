@@ -7,6 +7,8 @@ import { parsePagination } from "../common/utils/pagination";
 import { resolveInventoryScope } from "../common/utils/location-scope";
 import { NOT_DELETED } from "../common/utils/soft-delete";
 
+export type StockListFilter = "all" | "low" | "fast" | "slow";
+
 export type ProductStockGroup = {
   product: Prisma.ProductGetPayload<{ include: { category: true } }>;
   totalQuantity: number;
@@ -15,6 +17,11 @@ export type ProductStockGroup = {
   items: Prisma.InventoryGetPayload<{ include: { location: true } }>[];
   isLowStock: boolean;
 };
+
+function parseStockFilter(value?: string): StockListFilter {
+  if (value === "low" || value === "fast" || value === "slow") return value;
+  return "all";
+}
 
 @Injectable()
 export class InventoryService {
@@ -39,23 +46,40 @@ export class InventoryService {
       limit?: string;
       search?: string;
       locationId?: string;
+      filter?: string;
     }
   ): Promise<PaginatedResult<ProductStockGroup> | ProductStockGroup[]> {
     const scopeLocationId = resolveInventoryScope(user, options.locationId);
     const { page, limit, skip, isPaginated } = parsePagination(options.page, options.limit);
     const search = options.search?.trim();
+    const stockFilter = parseStockFilter(options.filter);
+
+    const searchWhere: Prisma.ProductWhereInput = search
+      ? {
+          OR: [
+            { name: { contains: search, mode: "insensitive" } },
+            { sku: { contains: search, mode: "insensitive" } }
+          ]
+        }
+      : {};
 
     const productWhere: Prisma.ProductWhereInput = {
       ...NOT_DELETED,
-      ...(search
-        ? {
-            OR: [
-              { name: { contains: search, mode: "insensitive" } },
-              { sku: { contains: search, mode: "insensitive" } }
-            ]
-          }
-        : {})
+      ...searchWhere
     };
+
+    if (stockFilter === "fast") {
+      productWhere.isFastMoving = true;
+    } else if (stockFilter === "slow") {
+      productWhere.isSlowMoving = true;
+    } else if (stockFilter === "low") {
+      const lowIds = await this.findLowStockProductIds(scopeLocationId, searchWhere);
+      if (lowIds.length === 0) {
+        if (!isPaginated) return [];
+        return toPaginatedResult([], 0, page, limit);
+      }
+      productWhere.id = { in: lowIds };
+    }
 
     const [products, total, locations] = await Promise.all([
       this.prisma.product.findMany({
@@ -81,6 +105,36 @@ export class InventoryService {
     }
 
     return toPaginatedResult(groups, total, page, limit);
+  }
+
+  private async findLowStockProductIds(
+    scopeLocationId: string | undefined,
+    searchWhere: Prisma.ProductWhereInput
+  ): Promise<string[]> {
+    const products = await this.prisma.product.findMany({
+      where: {
+        ...NOT_DELETED,
+        isActive: true,
+        minimumStockLevel: { gt: 0 },
+        ...searchWhere
+      },
+      select: { id: true, minimumStockLevel: true }
+    });
+    if (products.length === 0) return [];
+
+    const inventory = await this.prisma.inventory.groupBy({
+      by: ["productId"],
+      where: {
+        productId: { in: products.map((p) => p.id) },
+        ...(scopeLocationId ? { locationId: scopeLocationId } : {})
+      },
+      _sum: { quantity: true }
+    });
+    const qtyByProduct = new Map(inventory.map((row) => [row.productId, row._sum.quantity ?? 0]));
+
+    return products
+      .filter((product) => (qtyByProduct.get(product.id) ?? 0) <= product.minimumStockLevel)
+      .map((product) => product.id);
   }
 
   private toProductStockGroup(
