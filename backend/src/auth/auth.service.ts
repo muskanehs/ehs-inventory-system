@@ -1,0 +1,402 @@
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  UnauthorizedException
+} from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import { JwtService } from "@nestjs/jwt";
+import { Role } from "@prisma/client";
+import * as bcrypt from "bcrypt";
+import { PrismaService } from "../prisma/prisma.service";
+import { LoginDto } from "./dto/login.dto";
+import {
+  ChangePasswordDto,
+  ForgotPasswordDto,
+  ResetPasswordDto,
+  VerifyOtpDto
+} from "./dto/password.dto";
+import { BrevoService } from "./mail/brevo.service";
+import {
+  GENERIC_OTP_MESSAGE,
+  OTP_MAX_ATTEMPTS,
+  OTP_TTL_MS,
+  assertPasswordsMatch,
+  generateOtp,
+  generateResetSecret,
+  hashOtp,
+  hashPassword,
+  validatePasswordStrength,
+  verifyOtp
+} from "./password.util";
+import { NOT_DELETED } from "../common/utils/soft-delete";
+import { JWT_ALGORITHMS } from "./jwt.constants";
+import { TokenBlacklistService } from "./token-blacklist.service";
+
+type JwtPayload = {
+  sub: string;
+  email: string;
+  role: Role;
+  assignedLocationId?: string | null;
+  mustChangePassword?: boolean;
+};
+
+type PasswordResetPayload = {
+  sub: string;
+  email: string;
+  purpose: "password_reset";
+  rst: string;
+};
+
+function toAuthUser(user: {
+  id: string;
+  name: string;
+  email: string;
+  role: Role;
+  assignedLocationId: string | null;
+  mustChangePassword: boolean;
+  assignedLocation: { id: string; name: string; type: string } | null;
+}) {
+  return {
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    role: user.role,
+    assignedLocationId: user.assignedLocationId,
+    mustChangePassword: user.mustChangePassword,
+    assignedLocation: user.assignedLocation
+      ? {
+          id: user.assignedLocation.id,
+          name: user.assignedLocation.name,
+          type: user.assignedLocation.type
+        }
+      : null
+  };
+}
+
+@Injectable()
+export class AuthService {
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly jwtService: JwtService,
+    private readonly configService: ConfigService,
+    private readonly brevoService: BrevoService,
+    private readonly tokenBlacklist: TokenBlacklistService
+  ) {}
+
+  private async issueTokens(user: {
+    id: string;
+    email: string;
+    role: Role;
+    assignedLocationId: string | null;
+    mustChangePassword: boolean;
+  }) {
+    const payload: JwtPayload = {
+      sub: user.id,
+      email: user.email,
+      role: user.role,
+      assignedLocationId: user.assignedLocationId,
+      mustChangePassword: user.mustChangePassword
+    };
+
+    const accessToken = await this.jwtService.signAsync(payload, {
+      secret: this.configService.getOrThrow<string>("JWT_ACCESS_SECRET"),
+      algorithm: "HS256",
+      expiresIn: "15m"
+    });
+    const refreshToken = await this.jwtService.signAsync(payload, {
+      secret: this.configService.getOrThrow<string>("JWT_REFRESH_SECRET"),
+      algorithm: "HS256",
+      expiresIn: "7d"
+    });
+
+    const tokenHash = await bcrypt.hash(refreshToken, 10);
+    await this.prisma.refreshToken.create({
+      data: {
+        userId: user.id,
+        tokenHash,
+        expiresAt: new Date(Date.now() + 7 * 86400000)
+      }
+    });
+
+    return { accessToken, refreshToken };
+  }
+
+  private async revokeUserSessions(userId: string) {
+    await this.prisma.refreshToken.updateMany({
+      where: { userId, revokedAt: null },
+      data: { revokedAt: new Date() }
+    });
+  }
+
+  private clearOtpData() {
+    return {
+      otpHash: null,
+      otpExpiresAt: null,
+      otpAttempts: 0
+    };
+  }
+
+  async login(dto: LoginDto) {
+    const user = await this.prisma.user.findFirst({
+      where: { email: dto.email, ...NOT_DELETED },
+      include: { assignedLocation: true }
+    });
+    if (!user || !user.isActive) throw new UnauthorizedException("Invalid credentials");
+    const isMatch = await bcrypt.compare(dto.password, user.passwordHash);
+    if (!isMatch) throw new UnauthorizedException("Invalid credentials");
+
+    if (user.role === Role.GODOWN_MANAGER && !user.assignedLocationId) {
+      throw new ForbiddenException(
+        "Godown manager account has no assigned location. Contact an administrator."
+      );
+    }
+
+    const tokens = await this.issueTokens(user);
+    return {
+      ...tokens,
+      user: toAuthUser(user)
+    };
+  }
+
+  async getProfile(userId: string) {
+    const user = await this.prisma.user.findFirst({
+      where: { id: userId, ...NOT_DELETED },
+      include: { assignedLocation: true }
+    });
+    if (!user || !user.isActive) throw new UnauthorizedException();
+    return toAuthUser(user);
+  }
+
+  async changePassword(userId: string, dto: ChangePasswordDto) {
+    assertPasswordsMatch(dto.newPassword, dto.confirmPassword);
+    validatePasswordStrength(dto.newPassword);
+
+    const user = await this.prisma.user.findFirst({
+      where: { id: userId, ...NOT_DELETED },
+      include: { assignedLocation: true }
+    });
+    if (!user || !user.isActive) throw new UnauthorizedException();
+
+    const passwordHash = await hashPassword(dto.newPassword);
+    await this.revokeUserSessions(user.id);
+
+    const updated = await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        passwordHash,
+        mustChangePassword: false,
+        ...this.clearOtpData()
+      },
+      include: { assignedLocation: true }
+    });
+
+    const tokens = await this.issueTokens(updated);
+    return {
+      ...tokens,
+      user: toAuthUser(updated)
+    };
+  }
+
+  async forgotPassword(dto: ForgotPasswordDto) {
+    const email = dto.email.trim().toLowerCase();
+    const user = await this.prisma.user.findFirst({
+      where: { email: { equals: email, mode: "insensitive" }, ...NOT_DELETED }
+    });
+
+    if (user?.isActive) {
+      const otp = generateOtp();
+      const otpHash = await hashOtp(otp);
+      await this.prisma.user.update({
+        where: { id: user.id },
+        data: {
+          otpHash,
+          otpExpiresAt: new Date(Date.now() + OTP_TTL_MS),
+          otpAttempts: 0
+        }
+      });
+      await this.brevoService.sendPasswordResetOtp(user.email, otp);
+    }
+
+    return { message: GENERIC_OTP_MESSAGE };
+  }
+
+  async verifyOtp(dto: VerifyOtpDto) {
+    const email = dto.email.trim().toLowerCase();
+    const genericFailure = () => {
+      throw new BadRequestException("Invalid or expired OTP");
+    };
+
+    const user = await this.prisma.user.findFirst({
+      where: { email: { equals: email, mode: "insensitive" }, ...NOT_DELETED }
+    });
+
+    if (!user || !user.isActive || !user.otpHash || !user.otpExpiresAt) {
+      genericFailure();
+    }
+
+    const activeUser = user!;
+
+    if (activeUser.otpAttempts >= OTP_MAX_ATTEMPTS) {
+      genericFailure();
+    }
+
+    if (activeUser.otpExpiresAt!.getTime() < Date.now()) {
+      genericFailure();
+    }
+
+    const matches = await verifyOtp(dto.otp, activeUser.otpHash!);
+    if (!matches) {
+      await this.prisma.user.update({
+        where: { id: activeUser.id },
+        data: { otpAttempts: { increment: 1 } }
+      });
+      genericFailure();
+    }
+
+    // Replace OTP hash with one-time reset secret (token reusable only once)
+    const resetSecret = generateResetSecret();
+    const resetSecretHash = await hashOtp(resetSecret);
+    await this.prisma.user.update({
+      where: { id: activeUser.id },
+      data: {
+        otpHash: resetSecretHash,
+        otpExpiresAt: new Date(Date.now() + OTP_TTL_MS),
+        otpAttempts: 0
+      }
+    });
+
+    const resetPayload: PasswordResetPayload = {
+      sub: activeUser.id,
+      email: activeUser.email,
+      purpose: "password_reset",
+      rst: resetSecret
+    };
+
+    const resetToken = await this.jwtService.signAsync(resetPayload, {
+      secret: this.configService.getOrThrow<string>("JWT_ACCESS_SECRET"),
+      algorithm: "HS256",
+      expiresIn: "10m"
+    });
+
+    return { resetToken };
+  }
+
+  async resetPassword(dto: ResetPasswordDto) {
+    assertPasswordsMatch(dto.newPassword, dto.confirmPassword);
+    validatePasswordStrength(dto.newPassword);
+
+    let payload: PasswordResetPayload;
+    try {
+      payload = await this.jwtService.verifyAsync<PasswordResetPayload>(dto.resetToken, {
+        secret: this.configService.getOrThrow<string>("JWT_ACCESS_SECRET"),
+        algorithms: [...JWT_ALGORITHMS]
+      });
+    } catch {
+      throw new BadRequestException("Invalid or expired reset token");
+    }
+
+    if (payload.purpose !== "password_reset" || !payload.sub || !payload.rst) {
+      throw new BadRequestException("Invalid or expired reset token");
+    }
+
+    const user = await this.prisma.user.findFirst({
+      where: { id: payload.sub, ...NOT_DELETED }
+    });
+    if (!user || !user.isActive || !user.otpHash || !user.otpExpiresAt) {
+      throw new BadRequestException("Invalid or expired reset token");
+    }
+
+    if (user.otpExpiresAt.getTime() < Date.now()) {
+      throw new BadRequestException("Invalid or expired reset token");
+    }
+
+    const secretMatches = await verifyOtp(payload.rst, user.otpHash);
+    if (!secretMatches) {
+      throw new BadRequestException("Invalid or expired reset token");
+    }
+
+    const passwordHash = await hashPassword(dto.newPassword);
+    await this.revokeUserSessions(user.id);
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        passwordHash,
+        mustChangePassword: false,
+        ...this.clearOtpData()
+      }
+    });
+
+    return { message: "Password has been reset. You can now sign in." };
+  }
+
+  async refreshSession(refreshToken: string) {
+    let payload: JwtPayload;
+    try {
+      payload = await this.jwtService.verifyAsync<JwtPayload>(refreshToken, {
+        secret: this.configService.getOrThrow<string>("JWT_REFRESH_SECRET"),
+        algorithms: [...JWT_ALGORITHMS]
+      });
+    } catch {
+      throw new UnauthorizedException();
+    }
+
+    if (!payload.sub) {
+      throw new UnauthorizedException();
+    }
+
+    const storedTokens = await this.prisma.refreshToken.findMany({
+      where: {
+        userId: payload.sub,
+        revokedAt: null,
+        expiresAt: { gt: new Date() }
+      }
+    });
+
+    let matched = false;
+    for (const stored of storedTokens) {
+      if (await bcrypt.compare(refreshToken, stored.tokenHash)) {
+        matched = true;
+        await this.prisma.refreshToken.update({
+          where: { id: stored.id },
+          data: { revokedAt: new Date() }
+        });
+        break;
+      }
+    }
+
+    if (!matched) {
+      throw new UnauthorizedException();
+    }
+
+    const user = await this.prisma.user.findFirst({
+      where: { id: payload.sub, ...NOT_DELETED },
+      include: { assignedLocation: true }
+    });
+    if (!user || !user.isActive) {
+      throw new UnauthorizedException();
+    }
+
+    const tokens = await this.issueTokens(user);
+    return {
+      ...tokens,
+      user: toAuthUser(user)
+    };
+  }
+
+  async logout(userId: string, accessToken?: string | null) {
+    await this.revokeUserSessions(userId);
+    if (accessToken) {
+      try {
+        const decoded = await this.jwtService.verifyAsync<{ exp?: number }>(accessToken, {
+          secret: this.configService.getOrThrow<string>("JWT_ACCESS_SECRET"),
+          algorithms: [...JWT_ALGORITHMS]
+        });
+        await this.tokenBlacklist.revokeAccessToken(accessToken, decoded.exp);
+      } catch {
+        await this.tokenBlacklist.revokeAccessToken(accessToken);
+      }
+    }
+    return { message: "Signed out" };
+  }
+}

@@ -1,0 +1,193 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  STORE_MANAGER
+  GODOWN_MANAGER
+  STAFF
+}
+
+enum LocationType {
+  STORE
+  GODOWN
+}
+
+enum MovementType {
+  PURCHASE
+  SALE
+  TRANSFER
+  DAMAGE
+  ADJUSTMENT
+  RETURN
+}
+
+enum TransferStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  COMPLETED
+}
+
+enum TransferType {
+  INTERNAL
+  CUSTOMER
+}
+
+model User {
+  id                  String         @id @default(cuid())
+  name                String
+  email               String
+  phone               String?
+  passwordHash        String
+  role                Role
+  assignedLocationId  String?
+  isActive            Boolean        @default(true)
+  mustChangePassword  Boolean        @default(false)
+  otpHash             String?
+  otpExpiresAt        DateTime?
+  otpAttempts         Int            @default(0)
+  isDeleted           Boolean        @default(false)
+  deletedAt           DateTime?
+  deletedBy           String?
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+  refreshTokens       RefreshToken[]
+  movements           StockMovement[]
+  assignedLocation    Location?      @relation(fields: [assignedLocationId], references: [id], onDelete: SetNull)
+
+  @@index([email])
+  @@index([isDeleted])
+}
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  userId    String
+  tokenHash String
+  expiresAt DateTime
+  revokedAt DateTime?
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Location {
+  id        String      @id @default(cuid())
+  name      String
+  type      LocationType
+  isDeleted Boolean     @default(false)
+  deletedAt DateTime?
+  deletedBy String?
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+  inventory Inventory[]
+  users     User[]
+
+  @@index([name])
+  @@index([isDeleted])
+}
+
+model Category {
+  id          String    @id @default(cuid())
+  name        String
+  description String?
+  isDeleted   Boolean   @default(false)
+  deletedAt   DateTime?
+  deletedBy   String?
+  products    Product[]
+
+  @@index([name])
+  @@index([isDeleted])
+}
+
+model Product {
+  id                String          @id @default(cuid())
+  name              String
+  sku               String?
+  barcode           String?
+  categoryId        String
+  unit              String
+  minimumStockLevel Int             @default(0)
+  isActive          Boolean         @default(true)
+  isDeleted         Boolean         @default(false)
+  deletedAt         DateTime?
+  deletedBy         String?
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+  category          Category        @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  inventory         Inventory[]
+  movements         StockMovement[]
+
+  @@index([sku])
+  @@index([barcode])
+  @@index([isDeleted])
+}
+
+model Inventory {
+  id         String   @id @default(cuid())
+  productId  String
+  locationId String
+  quantity   Int
+  updatedAt  DateTime @updatedAt
+  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  location   Location @relation(fields: [locationId], references: [id], onDelete: Restrict)
+
+  @@unique([productId, locationId])
+  @@index([locationId])
+}
+
+model StockMovement {
+  id             String       @id @default(cuid())
+  productId      String
+  fromLocationId String?
+  toLocationId   String?
+  quantity       Int
+  movementType   MovementType
+  remarks        String?
+  performedBy    String
+  createdAt      DateTime     @default(now())
+  product        Product      @relation(fields: [productId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [performedBy], references: [id], onDelete: Restrict)
+
+  @@index([createdAt, movementType])
+}
+
+model Transfer {
+  id              String             @id @default(cuid())
+  transferType    TransferType       @default(INTERNAL)
+  fromLocationId  String
+  toLocationId    String?
+  driverName      String?
+  vehicleNumber   String?
+  vehicleContact  String?
+  customerName    String?
+  customerPhone   String?
+  customerAddress String?
+  status          TransferStatus     @default(PENDING)
+  requestedBy     String
+  approvedBy      String?
+  rejectionReason String?
+  remarks         String?
+  completedAt     DateTime?
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+  items           TransferLineItem[]
+
+  @@index([status, createdAt])
+  @@index([completedAt])
+}
+
+model TransferLineItem {
+  id         String   @id @default(cuid())
+  transferId String
+  productId  String
+  quantity   Int
+  transfer   Transfer @relation(fields: [transferId], references: [id], onDelete: Cascade)
+
+  @@index([transferId])
+  @@index([productId])
+}
