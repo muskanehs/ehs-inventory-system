@@ -36,6 +36,8 @@ export function validateEnv(): void {
   const isProduction = nodeEnv === "production" || nodeEnv === "prod";
 
   const databaseUrl = requireVar("DATABASE_URL");
+  // Prisma schema `directUrl` — required for migrate deploy (use non-pooler on Neon).
+  const directUrl = requireVar("DIRECT_URL");
   const jwtAccess = requireVar("JWT_ACCESS_SECRET");
   const jwtRefresh = requireVar("JWT_REFRESH_SECRET");
 
@@ -57,10 +59,25 @@ export function validateEnv(): void {
       );
       process.exit(1);
     }
+    if (!allowInsecureDb && !hasTlsInDatabaseUrl(directUrl)) {
+      console.error(
+        "[FATAL] DIRECT_URL must enable TLS in production (e.g. ?sslmode=require)."
+      );
+      process.exit(1);
+    }
 
     if (/inventory_password|localhost:5433|@localhost\b/i.test(databaseUrl) && !allowInsecureDb) {
       console.error(
         "[FATAL] DATABASE_URL appears to use local/default credentials. Use a production database URL."
+      );
+      process.exit(1);
+    }
+
+    // Neon pooler breaks Prisma migrate advisory locks (P1002).
+    if (/-pooler\./i.test(directUrl) || /[?&]pgbouncer=true/i.test(directUrl)) {
+      console.error(
+        "[FATAL] DIRECT_URL must be Neon's direct (non-pooler) connection string. " +
+          "Keep the pooled URL in DATABASE_URL; put the direct host in DIRECT_URL."
       );
       process.exit(1);
     }

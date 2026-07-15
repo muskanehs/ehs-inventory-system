@@ -3,8 +3,11 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  // Pooled URL for the running app (Neon -pooler is fine here).
+  url       = env("DATABASE_URL")
+  // Direct (non-pooler) URL for migrations — required so advisory locks work on Neon.
+  directUrl = env("DIRECT_URL")
 }
 
 enum Role {
