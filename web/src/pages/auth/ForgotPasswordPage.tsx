@@ -45,7 +45,7 @@ export default function ForgotPasswordPage() {
     <AuthShell>
       <AuthCard
         title="Forgot password"
-        description="Enter your login email. If the account exists, an OTP will be sent to the recovery inbox."
+        description="Enter your login email. Demo accounts (*.local) cannot receive mail — the OTP goes to the configured recovery inbox. Check Inbox and Spam."
       >
         <form onSubmit={onSubmit} className="space-y-4" noValidate>
           <div className="space-y-2">

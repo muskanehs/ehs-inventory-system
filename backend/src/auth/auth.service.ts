@@ -347,6 +347,9 @@ export class AuthService {
         });
         throw error;
       }
+    } else {
+      // Keep timing roughly consistent without revealing whether the account exists.
+      await hashOtp("00000000");
     }
 
     return { message: GENERIC_OTP_MESSAGE };

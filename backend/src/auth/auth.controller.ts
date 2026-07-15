@@ -127,7 +127,8 @@ export class AuthController {
   }
 
   @Post("forgot-password")
-  @Throttle({ default: { limit: 3, ttl: 3600000 } })
+  // 8 attempts / 15 minutes — enough for retries without enabling OTP spam.
+  @Throttle({ default: { limit: 8, ttl: 900000 } })
   forgotPassword(@Body() dto: ForgotPasswordDto) {
     return this.authService.forgotPassword(dto);
   }

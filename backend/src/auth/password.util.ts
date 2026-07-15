@@ -7,7 +7,8 @@ const BCRYPT_ROUNDS = 10;
 export const OTP_TTL_MS = 10 * 60 * 1000;
 export const OTP_MAX_ATTEMPTS = 5;
 export const OTP_LENGTH = 8;
-export const GENERIC_OTP_MESSAGE = "If the account exists, an OTP has been sent.";
+export const GENERIC_OTP_MESSAGE =
+  "If the account exists, an OTP has been sent to the recovery inbox (and the account email when it is deliverable).";
 
 export function validatePasswordStrength(password: string): void {
   if (password.length < 8) {

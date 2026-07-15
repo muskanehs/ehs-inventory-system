@@ -45,6 +45,9 @@ export function validateEnv(): void {
 
     requireVar("CORS_ORIGIN");
     requireVar("REDIS_URL");
+    requireVar("BREVO_API_KEY");
+    requireVar("BREVO_SENDER_EMAIL");
+    requireVar("RECOVERY_EMAIL");
 
     const allowInsecureDb = process.env.DATABASE_SSL === "disable";
     if (!allowInsecureDb && !hasTlsInDatabaseUrl(databaseUrl)) {
