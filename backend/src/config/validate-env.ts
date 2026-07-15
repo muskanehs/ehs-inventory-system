@@ -30,13 +30,21 @@ function hasTlsInDatabaseUrl(url: string): boolean {
   );
 }
 
+/** Neon pooler host → direct host when DIRECT_URL is omitted. */
+function resolveDirectUrl(databaseUrl: string): string {
+  const explicit = process.env.DIRECT_URL?.trim();
+  if (explicit) return explicit;
+  return databaseUrl.replace(/-pooler\./gi, ".");
+}
+
 /** Call before NestFactory.create / listen. Exits process on failure. */
 export function validateEnv(): void {
   const nodeEnv = (process.env.NODE_ENV?.trim() || "development").toLowerCase();
   const isProduction = nodeEnv === "production" || nodeEnv === "prod";
 
   const databaseUrl = requireVar("DATABASE_URL");
-  // Prisma schema `directUrl` — required for migrate deploy (use non-pooler on Neon).
+  // Prisma schema `directUrl` — derive from DATABASE_URL if unset (strip Neon -pooler).
+  process.env.DIRECT_URL = resolveDirectUrl(databaseUrl);
   const directUrl = requireVar("DIRECT_URL");
   const jwtAccess = requireVar("JWT_ACCESS_SECRET");
   const jwtRefresh = requireVar("JWT_REFRESH_SECRET");

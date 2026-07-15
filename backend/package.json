@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "start": "node dist/src/main.js",
-    "start:prod": "(prisma migrate deploy || (sleep 5 && prisma migrate deploy)) && node dist/src/main.js",
+    "start:prod": "(node scripts/migrate-deploy.mjs || (sleep 5 && node scripts/migrate-deploy.mjs)) && node dist/src/main.js",
     "start:dev": "nest start --watch",
     "build": "nest build",
     "lint": "eslint \"src/**/*.ts\"",
