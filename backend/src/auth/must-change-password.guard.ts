@@ -40,14 +40,19 @@ export class MustChangePasswordGuard implements CanActivate {
 
     let userId: string | undefined;
     try {
-      const payload = await this.jwtService.verifyAsync<{ sub?: string; purpose?: string }>(
-        token,
-        {
-          secret: this.configService.getOrThrow<string>("JWT_ACCESS_SECRET"),
-          algorithms: [...JWT_ALGORITHMS]
-        }
-      );
+      const payload = await this.jwtService.verifyAsync<{
+        sub?: string;
+        purpose?: string;
+        act?: { sub?: string };
+      }>(token, {
+        secret: this.configService.getOrThrow<string>("JWT_ACCESS_SECRET"),
+        algorithms: [...JWT_ALGORITHMS]
+      });
       if (payload.purpose === "password_reset") {
+        return true;
+      }
+      // Admin impersonation sessions should not be blocked by target password-change flags.
+      if (payload.act?.sub) {
         return true;
       }
       userId = payload.sub;

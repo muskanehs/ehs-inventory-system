@@ -20,6 +20,7 @@ type AuthState = {
   assignedLocationId: string | null;
   assignedLocationName: string | null;
   mustChangePassword: boolean;
+  canSwitchUsers: boolean;
   hasHydrated: boolean;
   profileLoading: boolean;
   setAuth: (
@@ -28,14 +29,16 @@ type AuthState = {
     email?: string,
     assignedLocationId?: string | null,
     assignedLocationName?: string | null,
-    mustChangePassword?: boolean
+    mustChangePassword?: boolean,
+    canSwitchUsers?: boolean
   ) => void;
   hydrateProfile: (
     assignedLocationId: string | null,
     assignedLocationName: string | null,
     userName?: string,
     email?: string,
-    mustChangePassword?: boolean
+    mustChangePassword?: boolean,
+    canSwitchUsers?: boolean
   ) => void;
   clear: () => void;
   setHasHydrated: (value: boolean) => void;
@@ -50,6 +53,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   assignedLocationId: null,
   assignedLocationName: null,
   mustChangePassword: false,
+  canSwitchUsers: false,
   hasHydrated: false,
   profileLoading: true,
   setAuth: (
@@ -58,7 +62,8 @@ export const useAuthStore = create<AuthState>((set) => ({
     email,
     assignedLocationId,
     assignedLocationName,
-    mustChangePassword
+    mustChangePassword,
+    canSwitchUsers
   ) =>
     set({
       isAuthenticated: true,
@@ -67,14 +72,16 @@ export const useAuthStore = create<AuthState>((set) => ({
       email: email ?? null,
       assignedLocationId: assignedLocationId ?? null,
       assignedLocationName: assignedLocationName ?? null,
-      mustChangePassword: mustChangePassword ?? false
+      mustChangePassword: mustChangePassword ?? false,
+      canSwitchUsers: canSwitchUsers ?? false
     }),
   hydrateProfile: (
     assignedLocationId,
     assignedLocationName,
     userName,
     email,
-    mustChangePassword
+    mustChangePassword,
+    canSwitchUsers
   ) =>
     set((state) => ({
       isAuthenticated: true,
@@ -83,7 +90,9 @@ export const useAuthStore = create<AuthState>((set) => ({
       userName: userName ?? state.userName,
       email: email ?? state.email,
       mustChangePassword:
-        mustChangePassword !== undefined ? mustChangePassword : state.mustChangePassword
+        mustChangePassword !== undefined ? mustChangePassword : state.mustChangePassword,
+      canSwitchUsers:
+        canSwitchUsers !== undefined ? canSwitchUsers : state.canSwitchUsers
     })),
   clear: () =>
     set({
@@ -93,7 +102,8 @@ export const useAuthStore = create<AuthState>((set) => ({
       email: null,
       assignedLocationId: null,
       assignedLocationName: null,
-      mustChangePassword: false
+      mustChangePassword: false,
+      canSwitchUsers: false
     }),
   setHasHydrated: (hasHydrated) => set({ hasHydrated }),
   setProfileLoading: (profileLoading) => set({ profileLoading })

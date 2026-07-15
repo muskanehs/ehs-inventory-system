@@ -29,6 +29,7 @@ import {
   validatePasswordStrength,
   verifyOtp
 } from "./password.util";
+import type { AuthUserPayload } from "../common/types/auth-user";
 import { NOT_DELETED } from "../common/utils/soft-delete";
 import { JWT_ALGORITHMS } from "./jwt.constants";
 import { TokenBlacklistService } from "./token-blacklist.service";
@@ -39,6 +40,7 @@ type JwtPayload = {
   role: Role;
   assignedLocationId?: string | null;
   mustChangePassword?: boolean;
+  act?: { sub: string };
 };
 
 type PasswordResetPayload = {
@@ -48,15 +50,18 @@ type PasswordResetPayload = {
   rst: string;
 };
 
-function toAuthUser(user: {
-  id: string;
-  name: string;
-  email: string;
-  role: Role;
-  assignedLocationId: string | null;
-  mustChangePassword: boolean;
-  assignedLocation: { id: string; name: string; type: string } | null;
-}) {
+function toAuthUser(
+  user: {
+    id: string;
+    name: string;
+    email: string;
+    role: Role;
+    assignedLocationId: string | null;
+    mustChangePassword: boolean;
+    assignedLocation: { id: string; name: string; type: string } | null;
+  },
+  options?: { canSwitchUsers?: boolean }
+) {
   return {
     id: user.id,
     name: user.name,
@@ -70,7 +75,8 @@ function toAuthUser(user: {
           name: user.assignedLocation.name,
           type: user.assignedLocation.type
         }
-      : null
+      : null,
+    canSwitchUsers: options?.canSwitchUsers ?? false
   };
 }
 
@@ -84,13 +90,16 @@ export class AuthService {
     private readonly tokenBlacklist: TokenBlacklistService
   ) {}
 
-  private async issueTokens(user: {
-    id: string;
-    email: string;
-    role: Role;
-    assignedLocationId: string | null;
-    mustChangePassword: boolean;
-  }) {
+  private async issueTokens(
+    user: {
+      id: string;
+      email: string;
+      role: Role;
+      assignedLocationId: string | null;
+      mustChangePassword: boolean;
+    },
+    options?: { act?: { sub: string } }
+  ) {
     const payload: JwtPayload = {
       sub: user.id,
       email: user.email,
@@ -98,6 +107,9 @@ export class AuthService {
       assignedLocationId: user.assignedLocationId,
       mustChangePassword: user.mustChangePassword
     };
+    if (options?.act?.sub) {
+      payload.act = { sub: options.act.sub };
+    }
 
     const accessToken = await this.jwtService.signAsync(payload, {
       secret: this.configService.getOrThrow<string>("JWT_ACCESS_SECRET"),
@@ -120,6 +132,34 @@ export class AuthService {
     });
 
     return { accessToken, refreshToken };
+  }
+
+  private async resolveCanSwitchUsers(role: Role, act?: { sub: string } | null) {
+    if (role === Role.ADMIN) return true;
+    if (!act?.sub) return false;
+    const actor = await this.prisma.user.findFirst({
+      where: {
+        id: act.sub,
+        role: Role.ADMIN,
+        isActive: true,
+        ...NOT_DELETED
+      },
+      select: { id: true }
+    });
+    return !!actor;
+  }
+
+  private async assertCanSwitchUsers(requester: AuthUserPayload) {
+    const allowed = await this.resolveCanSwitchUsers(requester.role, requester.act);
+    if (!allowed) {
+      throw new ForbiddenException("Only administrators can switch users");
+    }
+  }
+
+  private async resolveActorId(requester: AuthUserPayload) {
+    if (requester.act?.sub) return requester.act.sub;
+    if (requester.role === Role.ADMIN) return requester.sub;
+    return null;
   }
 
   private async revokeUserSessions(userId: string) {
@@ -155,17 +195,91 @@ export class AuthService {
     const tokens = await this.issueTokens(user);
     return {
       ...tokens,
-      user: toAuthUser(user)
+      user: toAuthUser(user, {
+        canSwitchUsers: user.role === Role.ADMIN
+      })
     };
   }
 
-  async getProfile(userId: string) {
+  async getProfile(userId: string, act?: { sub: string } | null) {
     const user = await this.prisma.user.findFirst({
       where: { id: userId, ...NOT_DELETED },
       include: { assignedLocation: true }
     });
     if (!user || !user.isActive) throw new UnauthorizedException();
-    return toAuthUser(user);
+    const canSwitchUsers = await this.resolveCanSwitchUsers(user.role, act);
+    const profileUser = act?.sub ? { ...user, mustChangePassword: false } : user;
+    return toAuthUser(profileUser, { canSwitchUsers });
+  }
+
+  async listSwitchableUsers(requester: AuthUserPayload) {
+    await this.assertCanSwitchUsers(requester);
+    return this.prisma.user.findMany({
+      where: { isActive: true, ...NOT_DELETED },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        assignedLocation: { select: { id: true, name: true } }
+      },
+      orderBy: [{ role: "asc" }, { name: "asc" }]
+    });
+  }
+
+  async switchUser(requester: AuthUserPayload, targetUserId: string) {
+    await this.assertCanSwitchUsers(requester);
+
+    const actorId = await this.resolveActorId(requester);
+    if (!actorId) {
+      throw new ForbiddenException("Only administrators can switch users");
+    }
+
+    const actor = await this.prisma.user.findFirst({
+      where: {
+        id: actorId,
+        role: Role.ADMIN,
+        isActive: true,
+        ...NOT_DELETED
+      },
+      select: { id: true }
+    });
+    if (!actor) {
+      throw new ForbiddenException("Only administrators can switch users");
+    }
+
+    const target = await this.prisma.user.findFirst({
+      where: { id: targetUserId, ...NOT_DELETED },
+      include: { assignedLocation: true }
+    });
+    if (!target || !target.isActive) {
+      throw new BadRequestException("User not found");
+    }
+
+    if (target.role === Role.GODOWN_MANAGER && !target.assignedLocationId) {
+      throw new ForbiddenException(
+        "Godown manager account has no assigned location. Contact an administrator."
+      );
+    }
+
+    const act = target.id === actor.id ? undefined : { sub: actor.id };
+    const tokens = await this.issueTokens(
+      act
+        ? {
+            ...target,
+            // Impersonation should not force the admin into the target's password-change gate.
+            mustChangePassword: false
+          }
+        : target,
+      act ? { act } : undefined
+    );
+    return {
+      ...tokens,
+      user: toAuthUser(
+        act ? { ...target, mustChangePassword: false } : target,
+        { canSwitchUsers: true }
+      )
+    };
   }
 
   async changePassword(userId: string, dto: ChangePasswordDto) {
@@ -199,7 +313,9 @@ export class AuthService {
     const tokens = await this.issueTokens(updated);
     return {
       ...tokens,
-      user: toAuthUser(updated)
+      user: toAuthUser(updated, {
+        canSwitchUsers: updated.role === Role.ADMIN
+      })
     };
   }
 
@@ -392,10 +508,28 @@ export class AuthService {
       throw new UnauthorizedException();
     }
 
-    const tokens = await this.issueTokens(user);
+    let act: { sub: string } | undefined;
+    if (payload.act?.sub) {
+      const actor = await this.prisma.user.findFirst({
+        where: {
+          id: payload.act.sub,
+          role: Role.ADMIN,
+          isActive: true,
+          ...NOT_DELETED
+        },
+        select: { id: true }
+      });
+      if (actor) {
+        act = { sub: actor.id };
+      }
+    }
+
+    const sessionUser = act ? { ...user, mustChangePassword: false } : user;
+    const tokens = await this.issueTokens(sessionUser, act ? { act } : undefined);
+    const canSwitchUsers = await this.resolveCanSwitchUsers(user.role, act);
     return {
       ...tokens,
-      user: toAuthUser(user)
+      user: toAuthUser(sessionUser, { canSwitchUsers })
     };
   }
 

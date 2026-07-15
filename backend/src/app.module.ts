@@ -18,6 +18,7 @@ import { ReportsModule } from "./reports/reports.module";
 import { TransfersModule } from "./transfers/transfers.module";
 import { UsersModule } from "./users/users.module";
 import { RedisModule } from "./common/redis/redis.module";
+import { HealthModule } from "./health/health.module";
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { RedisModule } from "./common/redis/redis.module";
     ]),
     PrismaModule,
     ExcelExportModule,
+    HealthModule,
     AuthModule,
     UsersModule,
     DashboardModule,

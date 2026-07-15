@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { LogOut, Menu, Moon, Sun } from "lucide-react";
+import { LogOut, Menu, Moon, PanelLeftClose, Sun } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -28,17 +28,24 @@ function formatRole(role: string | null) {
     .join(" ");
 }
 
+function isDesktopViewport() {
+  return typeof window !== "undefined" && window.matchMedia("(min-width: 768px)").matches;
+}
+
 export function TopNav() {
   const navigate = useNavigate();
   const search = useSearchStore((s) => s.query);
   const setSearch = useSearchStore((s) => s.setQuery);
   const role = useAuthStore((s) => s.role);
   const userName = useAuthStore((s) => s.userName);
+  const canSwitchUsers = useAuthStore((s) => s.canSwitchUsers);
   const clear = useAuthStore((s) => s.clear);
   const toggleTheme = useThemeStore((s) => s.toggleTheme);
   const theme = useThemeStore((s) => s.theme);
   const mobileOpen = useSidebarStore((s) => s.mobileOpen);
   const setMobileOpen = useSidebarStore((s) => s.setMobileOpen);
+  const collapsed = useSidebarStore((s) => s.collapsed);
+  const toggleCollapsed = useSidebarStore((s) => s.toggleCollapsed);
 
   const handleLogout = () => {
     void api
@@ -52,6 +59,14 @@ export function TopNav() {
       });
   };
 
+  const handleMenuClick = () => {
+    if (isDesktopViewport()) {
+      toggleCollapsed();
+      return;
+    }
+    setMobileOpen(true);
+  };
+
   const initials = (userName ?? "U")
     .split(" ")
     .map((n) => n[0])
@@ -61,15 +76,20 @@ export function TopNav() {
 
   return (
     <>
-      <header className="sticky top-0 z-40 flex h-14 items-center gap-3 border-b border-border/70 bg-surface/85 px-4 backdrop-blur-md sm:px-6">
+      <header className="sticky top-0 z-40 flex h-14 shrink-0 items-center gap-3 border-b border-border/70 bg-surface/85 px-4 backdrop-blur-md sm:px-6">
         <Button
           variant="ghost"
           size="icon"
-          className="h-9 w-9 md:hidden"
-          onClick={() => setMobileOpen(true)}
-          aria-label="Open navigation menu"
+          className="h-9 w-9"
+          onClick={handleMenuClick}
+          aria-label={collapsed ? "Open navigation menu" : "Close navigation menu"}
         >
-          <Menu className="h-4 w-4" strokeWidth={1.75} />
+          <Menu className="h-4 w-4 md:hidden" strokeWidth={1.75} />
+          {collapsed ? (
+            <Menu className="hidden h-4 w-4 md:block" strokeWidth={1.75} />
+          ) : (
+            <PanelLeftClose className="hidden h-4 w-4 md:block" strokeWidth={1.75} />
+          )}
         </Button>
 
         <SearchInput
@@ -81,7 +101,7 @@ export function TopNav() {
         />
 
         <div className="ml-auto flex items-center gap-1.5">
-          <UserSwitcher />
+          {canSwitchUsers ? <UserSwitcher /> : null}
 
           <Button
             variant="ghost"

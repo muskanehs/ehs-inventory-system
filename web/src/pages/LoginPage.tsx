@@ -213,7 +213,8 @@ function LoginCard({ className }: { className?: string }) {
         user.email ?? email,
         user.assignedLocationId,
         user.assignedLocation?.name,
-        user.mustChangePassword ?? false
+        user.mustChangePassword ?? false,
+        user.canSwitchUsers ?? user.role === "ADMIN"
       );
       toast.success("Welcome back!", { description: `Signed in as ${user.name}` });
       navigate(user.mustChangePassword ? "/change-password" : "/", { replace: true });

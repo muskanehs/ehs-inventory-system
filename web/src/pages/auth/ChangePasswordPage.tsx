@@ -66,7 +66,8 @@ export default function ChangePasswordPage() {
         user.email,
         user.assignedLocationId,
         user.assignedLocation?.name,
-        user.mustChangePassword ?? false
+        user.mustChangePassword ?? false,
+        user.canSwitchUsers ?? user.role === "ADMIN"
       );
       toast.success("Password updated", {
         description: "You can now continue using the application."

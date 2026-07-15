@@ -10,6 +10,7 @@ import {
 } from "@nestjs/common";
 import { Throttle } from "@nestjs/throttler";
 import { Request, Response } from "express";
+import type { AuthUserPayload } from "../common/types/auth-user";
 import { AuthService } from "./auth.service";
 import {
   REFRESH_TOKEN_COOKIE,
@@ -24,6 +25,7 @@ import {
   ResetPasswordDto,
   VerifyOtpDto
 } from "./dto/password.dto";
+import { SwitchUserDto } from "./dto/switch-user.dto";
 import { AllowDuringPasswordChange } from "./decorators/allow-during-password-change.decorator";
 import { extractAccessToken } from "./extract-access-token";
 import { JwtAuthGuard } from "./jwt-auth.guard";
@@ -46,8 +48,29 @@ export class AuthController {
   @Get("me")
   @UseGuards(JwtAuthGuard)
   @AllowDuringPasswordChange()
-  me(@Req() req: { user: { sub: string } }) {
-    return this.authService.getProfile(req.user.sub);
+  me(@Req() req: { user: AuthUserPayload }) {
+    return this.authService.getProfile(req.user.sub, req.user.act);
+  }
+
+  @Get("switchable-users")
+  @UseGuards(JwtAuthGuard)
+  @AllowDuringPasswordChange()
+  listSwitchableUsers(@Req() req: { user: AuthUserPayload }) {
+    return this.authService.listSwitchableUsers(req.user);
+  }
+
+  @Post("switch-user")
+  @UseGuards(JwtAuthGuard)
+  @AllowDuringPasswordChange()
+  @Throttle({ default: { limit: 30, ttl: 60000 } })
+  async switchUser(
+    @Req() req: { user: AuthUserPayload },
+    @Body() dto: SwitchUserDto,
+    @Res({ passthrough: true }) res: Response
+  ) {
+    const result = await this.authService.switchUser(req.user, dto.userId);
+    setAuthCookies(res, result);
+    return result;
   }
 
   @Post("change-password")

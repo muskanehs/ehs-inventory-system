@@ -120,6 +120,7 @@ export type AuthUser = {
   assignedLocationId?: string | null;
   assignedLocation?: Pick<Location, "id" | "name" | "type"> | null;
   mustChangePassword?: boolean;
+  canSwitchUsers?: boolean;
 };
 
 export type StockMovement = {

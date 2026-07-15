@@ -1,6 +1,7 @@
 import { Injectable, UnauthorizedException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { PassportStrategy } from "@nestjs/passport";
+import { Role } from "@prisma/client";
 import { Request } from "express";
 import { ExtractJwt, Strategy } from "passport-jwt";
 import type { AuthUserPayload } from "../common/types/auth-user";
@@ -56,12 +57,30 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       throw new UnauthorizedException();
     }
 
+    let act: AuthUserPayload["act"];
+    if (payload.act?.sub) {
+      const actor = await this.prisma.user.findFirst({
+        where: {
+          id: payload.act.sub,
+          role: Role.ADMIN,
+          isActive: true,
+          ...NOT_DELETED
+        },
+        select: { id: true }
+      });
+      if (!actor) {
+        throw new UnauthorizedException();
+      }
+      act = { sub: actor.id };
+    }
+
     return {
       sub: user.id,
       email: user.email,
       role: user.role,
       assignedLocationId: user.assignedLocationId,
-      mustChangePassword: user.mustChangePassword
+      mustChangePassword: user.mustChangePassword,
+      act
     };
   }
 }

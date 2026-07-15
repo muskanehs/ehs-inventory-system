@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Check, ChevronsUpDown, Loader2, Users } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -11,58 +11,97 @@ import {
   DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
 import { api } from "@/lib/api";
-import type { ApiResponse, AuthUser } from "@/lib/types";
-import { SWITCH_USER_ACCOUNTS } from "@/lib/switch-users";
+import type { ApiResponse, AuthUser, Role } from "@/lib/types";
 import { useAuthStore } from "@/store/auth";
 
-type LoginResponse = {
+type SwitchableUser = {
+  id: string;
+  name: string;
+  email: string;
+  role: Role;
+  assignedLocation?: { id: string; name: string } | null;
+};
+
+type SwitchResponse = {
   accessToken: string;
   refreshToken: string;
   user: AuthUser;
 };
 
+function formatRole(role: Role) {
+  return role.replace(/_/g, " ");
+}
+
+function accountLabel(user: SwitchableUser) {
+  if (user.role === "GODOWN_MANAGER" && user.assignedLocation?.name) {
+    return user.assignedLocation.name;
+  }
+  return user.name;
+}
+
 export function UserSwitcher() {
   const [switching, setSwitching] = useState(false);
+  const [loadingUsers, setLoadingUsers] = useState(false);
+  const [users, setUsers] = useState<SwitchableUser[]>([]);
   const email = useAuthStore((s) => s.email);
+  const canSwitchUsers = useAuthStore((s) => s.canSwitchUsers);
   const mustChangePassword = useAuthStore((s) => s.mustChangePassword);
   const setAuth = useAuthStore((s) => s.setAuth);
 
-  if (mustChangePassword) {
+  useEffect(() => {
+    if (!canSwitchUsers || mustChangePassword) return;
+
+    let cancelled = false;
+    setLoadingUsers(true);
+    void api
+      .get<ApiResponse<SwitchableUser[]>>("/auth/switchable-users")
+      .then((response) => {
+        if (!cancelled) setUsers(response.data.data);
+      })
+      .catch(() => {
+        if (!cancelled) setUsers([]);
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingUsers(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [canSwitchUsers, mustChangePassword]);
+
+  if (!canSwitchUsers || mustChangePassword) {
     return null;
   }
 
-  const currentAccount =
-    SWITCH_USER_ACCOUNTS.find((account) => account.email === email) ?? SWITCH_USER_ACCOUNTS[0];
+  const currentAccount = users.find((account) => account.email === email);
 
-  const handleSwitch = async (accountId: string) => {
-    const account = SWITCH_USER_ACCOUNTS.find((item) => item.id === accountId);
+  const handleSwitch = async (userId: string) => {
+    const account = users.find((item) => item.id === userId);
     if (!account || account.email === email) return;
 
     setSwitching(true);
     try {
-      const response = await api.post<ApiResponse<LoginResponse>>("/auth/login", {
-        email: account.email,
-        password: account.password
+      const response = await api.post<ApiResponse<SwitchResponse>>("/auth/switch-user", {
+        userId: account.id
       });
       const { user } = response.data.data;
       setAuth(
         user.role,
         user.name,
-        account.email,
+        user.email ?? account.email,
         user.assignedLocationId,
         user.assignedLocation?.name,
-        user.mustChangePassword ?? false
+        user.mustChangePassword ?? false,
+        user.canSwitchUsers ?? true
       );
-      if (user.mustChangePassword) {
-        window.location.href = "/change-password";
-        return;
-      }
-      toast.success(`Switched to ${account.label}`, {
+      toast.success(`Switched to ${accountLabel(account)}`, {
         description: `Now viewing as ${user.name}`
       });
+      window.location.assign("/");
     } catch {
       toast.error("Switch failed", {
-        description: `Could not sign in as ${account.label}. Run prisma:seed if demo users are missing.`
+        description: `Could not switch to ${accountLabel(account)}.`
       });
     } finally {
       setSwitching(false);
@@ -76,35 +115,41 @@ export function UserSwitcher() {
           variant="outline"
           size="sm"
           className="gap-1.5 border-border/60 text-muted-foreground"
-          disabled={switching}
+          disabled={switching || loadingUsers}
           aria-label="Switch user"
         >
-          {switching ? (
+          {switching || loadingUsers ? (
             <Loader2 className="h-4 w-4 animate-spin" />
           ) : (
             <Users className="h-4 w-4" />
           )}
-          <span className="max-w-[88px] truncate sm:max-w-[120px]">{currentAccount.label}</span>
+          <span className="max-w-[88px] truncate sm:max-w-[120px]">
+            {currentAccount ? accountLabel(currentAccount) : "Switch user"}
+          </span>
           <ChevronsUpDown className="h-3.5 w-3.5 text-muted-foreground" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-56">
         <DropdownMenuLabel>Switch user</DropdownMenuLabel>
         <DropdownMenuSeparator />
-        {SWITCH_USER_ACCOUNTS.map((account) => (
-          <DropdownMenuItem
-            key={account.id}
-            onClick={() => handleSwitch(account.id)}
-            disabled={switching || account.email === email}
-            className="flex items-center justify-between"
-          >
-            <div className="flex flex-col">
-              <span>{account.label}</span>
-              <span className="text-xs text-muted-foreground">{account.role.replace(/_/g, " ")}</span>
-            </div>
-            {account.email === email && <Check className="h-4 w-4 text-primary" />}
-          </DropdownMenuItem>
-        ))}
+        {users.length === 0 ? (
+          <DropdownMenuItem disabled>No users available</DropdownMenuItem>
+        ) : (
+          users.map((account) => (
+            <DropdownMenuItem
+              key={account.id}
+              onClick={() => handleSwitch(account.id)}
+              disabled={switching || account.email === email}
+              className="flex items-center justify-between"
+            >
+              <div className="flex flex-col">
+                <span>{accountLabel(account)}</span>
+                <span className="text-xs text-muted-foreground">{formatRole(account.role)}</span>
+              </div>
+              {account.email === email && <Check className="h-4 w-4 text-primary" />}
+            </DropdownMenuItem>
+          ))
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
   );

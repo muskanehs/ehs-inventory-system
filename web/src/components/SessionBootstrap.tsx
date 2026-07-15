@@ -27,7 +27,8 @@ export function SessionBootstrap() {
           user.email,
           user.assignedLocationId ?? null,
           user.assignedLocation?.name ?? null,
-          user.mustChangePassword ?? false
+          user.mustChangePassword ?? false,
+          user.canSwitchUsers ?? user.role === "ADMIN"
         );
       })
       .catch(() => {

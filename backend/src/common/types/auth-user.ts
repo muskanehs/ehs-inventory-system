@@ -6,4 +6,6 @@ export type AuthUserPayload = {
   role: Role;
   assignedLocationId?: string | null;
   mustChangePassword?: boolean;
+  /** Present when an ADMIN is viewing the app as another user. */
+  act?: { sub: string };
 };

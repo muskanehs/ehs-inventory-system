@@ -198,8 +198,8 @@ export default function DashboardPage() {
           <CardTitle className="text-sm sm:text-base">Quick Actions</CardTitle>
           <CardDescription className="text-[11px] sm:text-sm">Jump to common tasks</CardDescription>
         </CardHeader>
-        <CardContent className="p-4 pt-0 sm:p-6 sm:pt-0">
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-2 lg:grid-cols-4">
+        <CardContent className="px-5 pb-5 pt-1 sm:px-6 sm:pb-6 sm:pt-2">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {[
               { label: "View Inventory", href: "/inventory", icon: Boxes },
               { label: "Manage Transfers", href: "/transfers", icon: ArrowLeftRight },
