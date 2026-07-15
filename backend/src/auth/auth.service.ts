@@ -178,6 +178,11 @@ export class AuthService {
     });
     if (!user || !user.isActive) throw new UnauthorizedException();
 
+    const matchesCurrent = await bcrypt.compare(dto.newPassword, user.passwordHash);
+    if (matchesCurrent) {
+      throw new BadRequestException("New password must be different from your current password");
+    }
+
     const passwordHash = await hashPassword(dto.newPassword);
     await this.revokeUserSessions(user.id);
 
@@ -207,6 +212,8 @@ export class AuthService {
     if (user?.isActive) {
       const otp = generateOtp();
       const otpHash = await hashOtp(otp);
+      // Persist OTP before send so local DEV fallback (logged OTP) remains usable
+      // if Brevo is not configured.
       await this.prisma.user.update({
         where: { id: user.id },
         data: {
@@ -215,7 +222,15 @@ export class AuthService {
           otpAttempts: 0
         }
       });
-      await this.brevoService.sendPasswordResetOtp(user.email, otp);
+      try {
+        await this.brevoService.sendPasswordResetOtp(user.email, otp);
+      } catch (error) {
+        await this.prisma.user.update({
+          where: { id: user.id },
+          data: this.clearOtpData()
+        });
+        throw error;
+      }
     }
 
     return { message: GENERIC_OTP_MESSAGE };

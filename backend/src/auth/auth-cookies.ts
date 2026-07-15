@@ -8,10 +8,13 @@ const REFRESH_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 
 function baseCookieOptions(): CookieOptions {
   const isProd = process.env.NODE_ENV === "production";
+  // Production SPA (e.g. Vercel) calling API (e.g. Render) is cross-site;
+  // SameSite=Lax cookies are dropped by the browser, so login/change-password
+  // appears to work in UI state but authenticated mutations never persist.
   return {
     httpOnly: true,
     secure: isProd,
-    sameSite: "lax",
+    sameSite: isProd ? "none" : "lax",
     path: "/"
   };
 }
