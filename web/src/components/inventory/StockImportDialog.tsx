@@ -27,7 +27,7 @@ export function StockImportDialog({ open, onOpenChange }: StockImportDialogProps
 
   const [kind, setKind] = useState<ImportKind>(null);
   const [uploading, setUploading] = useState(false);
-  const [downloading, setDownloading] = useState(false);
+  const [downloading, setDownloading] = useState<"empty" | "products" | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const reset = () => {
@@ -40,19 +40,27 @@ export function StockImportDialog({ open, onOpenChange }: StockImportDialogProps
     onOpenChange(next);
   };
 
-  const handleDownloadTemplate = async () => {
+  const handleDownloadTemplate = async (stockVariant: "empty" | "products" = "empty") => {
     if (!kind) return;
-    setDownloading(true);
+    setDownloading(kind === "stock" ? stockVariant : "empty");
     try {
-      const path = kind === "products" ? "/import/products/template" : "/import/stock/template";
-      const filename = kind === "products" ? "product-import-template.xlsx" : "stock-import-template.xlsx";
-      await downloadExport(path, filename);
+      if (kind === "products") {
+        await downloadExport("/import/products/template", "product-import-template.xlsx");
+      } else {
+        const filename =
+          stockVariant === "products"
+            ? "stock-import-template-with-products.xlsx"
+            : "stock-import-template.xlsx";
+        await downloadExport("/import/stock/template", filename, {
+          variant: stockVariant
+        });
+      }
     } catch (error) {
       toast.error("Could not download template", {
         description: error instanceof Error ? error.message : "Please try again."
       });
     } finally {
-      setDownloading(false);
+      setDownloading(null);
     }
   };
 
@@ -138,37 +146,85 @@ export function StockImportDialog({ open, onOpenChange }: StockImportDialogProps
             <p className="text-sm font-medium">
               {kind === "products" ? "Import products" : "Import stock"}
             </p>
-            <div className="flex flex-wrap gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={downloading}
-                onClick={() => void handleDownloadTemplate()}
-              >
-                {downloading ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Download className="h-4 w-4" />
-                )}
-                Download template
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                disabled={uploading}
-                onClick={() => fileRef.current?.click()}
-              >
-                {uploading ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <FileUp className="h-4 w-4" />
-                )}
-                Choose file
-              </Button>
-              <Button type="button" variant="ghost" size="sm" onClick={() => setKind(null)}>
-                Back
-              </Button>
+            <div className="space-y-3">
+              {kind === "stock" ? (
+                <div className="space-y-2">
+                  <p className="text-xs font-medium text-muted-foreground">Download template</p>
+                  <div className="grid gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="h-auto justify-start gap-3 px-3 py-2.5"
+                      disabled={downloading !== null}
+                      onClick={() => void handleDownloadTemplate("empty")}
+                    >
+                      {downloading === "empty" ? (
+                        <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
+                      ) : (
+                        <Download className="h-4 w-4 shrink-0" />
+                      )}
+                      <div className="text-left">
+                        <p className="text-sm font-medium">Empty template</p>
+                        <p className="text-xs font-normal text-muted-foreground">
+                          Headers only — enter each product yourself
+                        </p>
+                      </div>
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="h-auto justify-start gap-3 px-3 py-2.5"
+                      disabled={downloading !== null}
+                      onClick={() => void handleDownloadTemplate("products")}
+                    >
+                      {downloading === "products" ? (
+                        <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
+                      ) : (
+                        <Download className="h-4 w-4 shrink-0" />
+                      )}
+                      <div className="text-left">
+                        <p className="text-sm font-medium">With all products</p>
+                        <p className="text-xs font-normal text-muted-foreground">
+                          Products prefilled — fill location and quantity
+                        </p>
+                      </div>
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={downloading !== null}
+                  onClick={() => void handleDownloadTemplate()}
+                >
+                  {downloading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Download className="h-4 w-4" />
+                  )}
+                  Download template
+                </Button>
+              )}
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  disabled={uploading}
+                  onClick={() => fileRef.current?.click()}
+                >
+                  {uploading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <FileUp className="h-4 w-4" />
+                  )}
+                  Choose file
+                </Button>
+                <Button type="button" variant="ghost" size="sm" onClick={() => setKind(null)}>
+                  Back
+                </Button>
+              </div>
             </div>
             <input
               ref={fileRef}
@@ -181,7 +237,9 @@ export function StockImportDialog({ open, onOpenChange }: StockImportDialogProps
               }}
             />
             <p className="text-xs text-muted-foreground">
-              Accepted formats: .xlsx, .csv (max 5 MB)
+              {kind === "stock"
+                ? "Leave location and quantity blank to skip a product. Accepted: .xlsx, .csv (max 5 MB)."
+                : "Accepted formats: .xlsx, .csv (max 5 MB)"}
             </p>
           </div>
         )}

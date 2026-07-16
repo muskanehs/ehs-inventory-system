@@ -61,24 +61,60 @@ export class ImportService {
     return this.buildTemplate(PRODUCT_COLUMNS, "product-import-template", format);
   }
 
-  stockTemplate(format: "csv" | "xlsx") {
+  async stockTemplate(
+    format: "csv" | "xlsx",
+    variant: "empty" | "products" = "empty"
+  ) {
+    if (variant === "products") {
+      const products = await this.prisma.product.findMany({
+        where: NOT_DELETED,
+        orderBy: { name: "asc" },
+        select: { sku: true, name: true }
+      });
+      const rows = products.map((product) => ({
+        sku: product.sku ?? "",
+        productName: product.name,
+        locationName: "",
+        quantity: "",
+        remarks: ""
+      }));
+      return this.buildTemplate(
+        STOCK_COLUMNS,
+        "stock-import-template-with-products",
+        format,
+        rows
+      );
+    }
     return this.buildTemplate(STOCK_COLUMNS, "stock-import-template", format);
   }
 
   private async buildTemplate(
     columns: ExcelColumn[],
     filename: string,
-    format: "csv" | "xlsx"
+    format: "csv" | "xlsx",
+    rows: Record<string, unknown>[] = []
   ) {
     if (format === "csv") {
       const header = columns.map((c) => c.header).join(",");
+      const body = rows
+        .map((row) =>
+          columns
+            .map((col) => {
+              const raw = row[col.key];
+              const value = raw == null ? "" : String(raw);
+              return /[",\n\r]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value;
+            })
+            .join(",")
+        )
+        .join("\n");
+      const csv = body ? `${header}\n${body}\n` : `${header}\n`;
       return {
-        buffer: Buffer.from(`${header}\n`, "utf-8"),
+        buffer: Buffer.from(csv, "utf-8"),
         filename: `${filename}.csv`,
         contentType: "text/csv"
       };
     }
-    const buffer = await this.excelExport.buildWorkbook(columns, []);
+    const buffer = await this.excelExport.buildWorkbook(columns, rows);
     return {
       buffer,
       filename: `${filename}.xlsx`,
@@ -186,6 +222,14 @@ export class ImportService {
       try {
         const sku = row.sku?.trim();
         const productName = row.productname?.trim();
+        const locationName = row.locationname?.trim();
+        const quantityRaw = row.quantity?.trim() ?? "";
+
+        // Prefill templates list every product; leave location/quantity blank to skip a row.
+        if (!locationName && !quantityRaw) {
+          continue;
+        }
+
         if (!sku && !productName) {
           throw new Error("sku or productName is required");
         }
@@ -204,7 +248,6 @@ export class ImportService {
           throw new Error(sku ? `Product with SKU "${sku}" not found` : `Product "${productName}" not found`);
         }
 
-        const locationName = row.locationname?.trim();
         if (!locationName) {
           throw new Error("locationName is required");
         }
@@ -225,7 +268,7 @@ export class ImportService {
           }
         }
 
-        const quantity = Number.parseInt(row.quantity ?? "", 10);
+        const quantity = Number.parseInt(quantityRaw, 10);
         if (!Number.isFinite(quantity) || quantity < 1) {
           throw new Error("quantity must be a positive integer");
         }

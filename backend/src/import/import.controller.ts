@@ -51,9 +51,14 @@ export class ImportController {
   @Roles(Role.ADMIN, Role.STORE_MANAGER, Role.GODOWN_MANAGER)
   async stockTemplate(
     @Query("format") format: "csv" | "xlsx" = "xlsx",
+    @Query("variant") variant: "empty" | "products" = "empty",
     @Res() res: Response
   ) {
-    const { buffer, filename, contentType } = await this.importService.stockTemplate(format);
+    const templateVariant = variant === "products" ? "products" : "empty";
+    const { buffer, filename, contentType } = await this.importService.stockTemplate(
+      format,
+      templateVariant
+    );
     if (format === "xlsx" || filename.endsWith(".xlsx")) {
       return this.excelExport.sendExcelFile(res, buffer, filename);
     }
