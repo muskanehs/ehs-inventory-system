@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Header, Param, Patch, Post, Query, Res, UseGuards } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query, Res, UseGuards } from "@nestjs/common";
 import { Role } from "@prisma/client";
 import { Response } from "express";
 import { Throttle } from "@nestjs/throttler";
@@ -54,7 +54,6 @@ export class ProductsController {
   @Get("export")
   @Roles(Role.ADMIN, Role.STORE_MANAGER)
   @Throttle({ default: { limit: 10, ttl: 60000 } })
-  @Header("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
   async export(@Query("format") format: "csv" | "xlsx" = "xlsx", @Res() res: Response) {
     const result = await this.productsService.findAll();
     const rows = Array.isArray(result) ? result : result.items;
@@ -89,8 +88,7 @@ export class ProductsController {
       ],
       data
     );
-    res.setHeader("Content-Disposition", "attachment; filename=products.xlsx");
-    return res.send(buffer);
+    return this.excelExport.sendExcelFile(res, buffer, "products.xlsx");
   }
 
   @Roles(Role.ADMIN, Role.STORE_MANAGER)

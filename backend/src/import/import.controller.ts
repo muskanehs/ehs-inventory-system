@@ -17,6 +17,7 @@ import { CurrentUser } from "../common/decorators/current-user.decorator";
 import { Roles } from "../common/decorators/roles.decorator";
 import { RolesGuard } from "../common/guards/roles.guard";
 import type { AuthUserPayload } from "../common/types/auth-user";
+import { ExcelExportService } from "../common/export/excel-export.service";
 import { ImportService } from "./import.service";
 import type { UploadedImportFile } from "./import.types";
 
@@ -25,7 +26,10 @@ const MAX_FILE_SIZE = 5 * 1024 * 1024;
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Controller("import")
 export class ImportController {
-  constructor(private readonly importService: ImportService) {}
+  constructor(
+    private readonly importService: ImportService,
+    private readonly excelExport: ExcelExportService
+  ) {}
 
   @Get("products/template")
   @Roles(Role.ADMIN, Role.STORE_MANAGER)
@@ -34,9 +38,13 @@ export class ImportController {
     @Res() res: Response
   ) {
     const { buffer, filename, contentType } = await this.importService.productTemplate(format);
+    if (format === "xlsx" || filename.endsWith(".xlsx")) {
+      return this.excelExport.sendExcelFile(res, buffer, filename);
+    }
     res.setHeader("Content-Type", contentType);
-    res.setHeader("Content-Disposition", `attachment; filename=${filename}`);
-    return res.send(buffer);
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    res.setHeader("Content-Length", String(buffer.length));
+    return res.end(buffer);
   }
 
   @Get("stock/template")
@@ -46,9 +54,13 @@ export class ImportController {
     @Res() res: Response
   ) {
     const { buffer, filename, contentType } = await this.importService.stockTemplate(format);
+    if (format === "xlsx" || filename.endsWith(".xlsx")) {
+      return this.excelExport.sendExcelFile(res, buffer, filename);
+    }
     res.setHeader("Content-Type", contentType);
-    res.setHeader("Content-Disposition", `attachment; filename=${filename}`);
-    return res.send(buffer);
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    res.setHeader("Content-Length", String(buffer.length));
+    return res.end(buffer);
   }
 
   @Post("products")

@@ -78,6 +78,7 @@ export function StockImportDialog({ open, onOpenChange }: StockImportDialogProps
       void queryClient.invalidateQueries({ queryKey: ["inventory"] });
       void queryClient.invalidateQueries({ queryKey: ["products"] });
       void queryClient.invalidateQueries({ queryKey: ["categories"] });
+      void queryClient.invalidateQueries({ queryKey: ["categories", "stats"] });
       void queryClient.invalidateQueries({ queryKey: ["movements"] });
       handleClose(false);
     } catch (error) {

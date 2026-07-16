@@ -103,12 +103,7 @@ export class ReportsController {
         INVENTORY_COLUMNS,
         [...groups.entries()].map(([sheetName, sheetRows]) => ({ sheetName, rows: sheetRows }))
       );
-      res.setHeader(
-        "Content-Type",
-        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-      );
-      res.setHeader("Content-Disposition", "attachment; filename=inventory-by-category.xlsx");
-      return res.send(buffer);
+      return this.excelExport.sendExcelFile(res, buffer, "inventory-by-category.xlsx");
     }
 
     if (groupBy === "location") {
@@ -122,20 +117,10 @@ export class ReportsController {
         INVENTORY_COLUMNS,
         [...groups.entries()].map(([sheetName, sheetRows]) => ({ sheetName, rows: sheetRows }))
       );
-      res.setHeader(
-        "Content-Type",
-        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-      );
-      res.setHeader("Content-Disposition", "attachment; filename=inventory-by-location.xlsx");
-      return res.send(buffer);
+      return this.excelExport.sendExcelFile(res, buffer, "inventory-by-location.xlsx");
     }
 
     const buffer = await this.excelExport.buildWorkbook(INVENTORY_COLUMNS, data);
-    res.setHeader(
-      "Content-Type",
-      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    );
-    res.setHeader("Content-Disposition", "attachment; filename=inventory-report.xlsx");
-    return res.send(buffer);
+    return this.excelExport.sendExcelFile(res, buffer, "inventory-report.xlsx");
   }
 }

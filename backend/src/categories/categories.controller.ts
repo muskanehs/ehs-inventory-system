@@ -58,7 +58,6 @@ export class CategoriesController {
   @Get("export")
   @Roles(Role.ADMIN, Role.STORE_MANAGER)
   @Throttle({ default: { limit: 10, ttl: 60000 } })
-  @Header("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
   async export(@Query("format") format: "csv" | "xlsx" = "xlsx", @Res() res: Response) {
     const rows = await this.categoriesService.findAllForExport();
     const data = rows.map((r) => ({
@@ -85,8 +84,7 @@ export class CategoriesController {
       ],
       data
     );
-    res.setHeader("Content-Disposition", "attachment; filename=categories.xlsx");
-    return res.send(buffer);
+    return this.excelExport.sendExcelFile(res, buffer, "categories.xlsx");
   }
 
   @Get(":id")

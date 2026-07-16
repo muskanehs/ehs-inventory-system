@@ -86,12 +86,7 @@ export class LocationsController {
       ],
       data
     );
-    res.setHeader(
-      "Content-Type",
-      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    );
-    res.setHeader("Content-Disposition", "attachment; filename=locations.xlsx");
-    return res.send(buffer);
+    return this.excelExport.sendExcelFile(res, buffer, "locations.xlsx");
   }
 
   @Roles(Role.ADMIN)

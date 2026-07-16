@@ -89,12 +89,7 @@ export class MovementsController {
       ],
       data
     );
-    res.setHeader(
-      "Content-Type",
-      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    );
-    res.setHeader("Content-Disposition", "attachment; filename=movements.xlsx");
-    return res.send(buffer);
+    return this.excelExport.sendExcelFile(res, buffer, "movements.xlsx");
   }
 
   @Post()

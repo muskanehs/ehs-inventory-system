@@ -72,7 +72,22 @@ async function bootstrap() {
     credentials: true
   });
   app.use(cookieParser());
-  app.use(compression());
+  app.use(
+    compression({
+      filter: (req, res) => {
+        if (req.headers["x-no-compression"]) return false;
+        const type = String(res.getHeader("Content-Type") ?? "");
+        if (
+          type.includes("spreadsheetml") ||
+          type.includes("application/vnd.ms-excel") ||
+          type.includes("application/octet-stream")
+        ) {
+          return false;
+        }
+        return compression.filter(req, res);
+      }
+    })
+  );
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,

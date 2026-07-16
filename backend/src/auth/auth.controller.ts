@@ -15,6 +15,7 @@ import { AuthService } from "./auth.service";
 import {
   REFRESH_TOKEN_COOKIE,
   clearAuthCookies,
+  logAuthCookiesFromRequest,
   readCookieToken,
   setAuthCookies
 } from "./auth-cookies";
@@ -48,7 +49,8 @@ export class AuthController {
   @Get("me")
   @UseGuards(JwtAuthGuard)
   @AllowDuringPasswordChange()
-  me(@Req() req: { user: AuthUserPayload }) {
+  me(@Req() req: Request & { user: AuthUserPayload }) {
+    logAuthCookiesFromRequest(req, "auth/me");
     return this.authService.getProfile(req.user.sub, req.user.act);
   }
 
@@ -92,6 +94,7 @@ export class AuthController {
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response
   ) {
+    logAuthCookiesFromRequest(req, "auth/refresh");
     const refreshToken =
       readCookieToken(
         req.cookies as Record<string, string | undefined> | undefined,

@@ -41,14 +41,16 @@ export function UserSwitcher() {
   const setAuth = useAuthStore((s) => s.setAuth);
 
   const isAdminSession = role === "ADMIN";
-  const isImpersonating = canSwitchUsers && !isAdminSession;
+  // Full account picker: admin at main store only.
+  const showAccountPicker = canSwitchUsers && isAdminSession && !mustChangePassword;
+  // Compact exit control while an admin is viewing another account.
+  const showReturnToAdmin = canSwitchUsers && !isAdminSession && !mustChangePassword;
 
   const { data: users = [], isLoading: loadingUsers } = useSwitchableUsers(
-    canSwitchUsers && !mustChangePassword
+    showAccountPicker || showReturnToAdmin
   );
 
-  // Full account switcher is admin / main-store only — never on godown manager views.
-  if (!canSwitchUsers || mustChangePassword || (!isAdminSession && !isImpersonating)) {
+  if (!showAccountPicker && !showReturnToAdmin) {
     return null;
   }
 
@@ -81,31 +83,17 @@ export function UserSwitcher() {
     }
   };
 
-  const handleSwitch = async (userId: string) => {
-    const account = users.find((item) => item.id === userId);
-    if (!account || account.email === email) return;
-    await applySwitch(account);
-  };
-
-  const handleReturnToAdmin = async () => {
+  if (showReturnToAdmin) {
     const admin = users.find((account) => account.role === "ADMIN");
-    if (!admin) {
-      toast.error("Could not return to admin", {
-        description: "No admin account was found in the switch list."
-      });
-      return;
-    }
-    await applySwitch(admin);
-  };
-
-  if (isImpersonating) {
     return (
       <Button
         variant="outline"
         size="sm"
         className="gap-1.5 border-border/60 text-muted-foreground"
-        disabled={switching || loadingUsers}
-        onClick={() => void handleReturnToAdmin()}
+        disabled={switching || loadingUsers || !admin}
+        onClick={() => {
+          if (admin) void applySwitch(admin);
+        }}
         aria-label="Return to admin"
       >
         {switching || loadingUsers ? (
@@ -119,6 +107,12 @@ export function UserSwitcher() {
   }
 
   const currentAccount = users.find((account) => account.email === email);
+
+  const handleSwitch = async (userId: string) => {
+    const account = users.find((item) => item.id === userId);
+    if (!account || account.email === email) return;
+    await applySwitch(account);
+  };
 
   return (
     <DropdownMenu>

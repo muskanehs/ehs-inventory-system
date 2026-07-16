@@ -3,9 +3,8 @@ import { api } from "@/lib/api";
 export async function uploadImport(path: string, file: File) {
   const formData = new FormData();
   formData.append("file", file);
-  const response = await api.post(path, formData, {
-    headers: { "Content-Type": "multipart/form-data" }
-  });
+  // Do not set Content-Type manually — the browser must add the multipart boundary.
+  const response = await api.post(path, formData);
   return response.data.data as {
     created: number;
     skipped: number;
@@ -37,7 +36,16 @@ async function downloadBlob(response: { data: Blob; headers: unknown }, filename
     throw new Error(message);
   }
 
-  const url = window.URL.createObjectURL(response.data);
+  const mime =
+    contentType && !contentType.includes("application/json")
+      ? contentType.split(";")[0].trim()
+      : "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+  const blob =
+    response.data.type && response.data.type !== ""
+      ? response.data
+      : new Blob([response.data], { type: mime });
+
+  const url = window.URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
   link.download = filename;

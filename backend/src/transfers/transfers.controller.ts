@@ -126,12 +126,7 @@ export class TransfersController {
       ],
       data
     );
-    res.setHeader(
-      "Content-Type",
-      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    );
-    res.setHeader("Content-Disposition", "attachment; filename=transfers.xlsx");
-    return res.send(buffer);
+    return this.excelExport.sendExcelFile(res, buffer, "transfers.xlsx");
   }
 
   @Get(":id/dispatch-slip")

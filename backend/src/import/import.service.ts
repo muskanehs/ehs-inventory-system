@@ -97,7 +97,10 @@ export class ImportService {
     if (name.endsWith(".csv")) {
       return this.excelExport.parseCsv(file.buffer, expectedHeaders);
     }
-    if (name.endsWith(".xlsx") || name.endsWith(".xls")) {
+    if (name.endsWith(".xls") && !name.endsWith(".xlsx")) {
+      throw new BadRequestException("Legacy .xls is not supported. Please upload .xlsx or .csv");
+    }
+    if (name.endsWith(".xlsx")) {
       return this.excelExport.parseWorkbook(file.buffer, expectedHeaders);
     }
     throw new BadRequestException("File must be .xlsx or .csv");
