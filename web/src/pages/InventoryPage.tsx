@@ -2,11 +2,13 @@ import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import {
   AlertTriangle,
+  FileUp,
   Package,
   PackagePlus,
   Plus
 } from "lucide-react";
 import { StockExportDialog } from "@/components/inventory/StockExportDialog";
+import { StockImportDialog } from "@/components/inventory/StockImportDialog";
 import { EmptyState } from "@/components/EmptyState";
 import { PageHeader } from "@/components/PageHeader";
 import { PageShell } from "@/components/PageShell";
@@ -80,6 +82,7 @@ export default function InventoryPage() {
   const { isGodownScoped, scopedLocationId, assignedLocationName } = useLocationScope();
   const role = useAuthStore((s) => s.role);
   const canManageProducts = role === "ADMIN" || role === "STORE_MANAGER";
+  const canImport = canManageProducts || role === "GODOWN_MANAGER";
 
   const [searchParams, setSearchParams] = useSearchParams();
   const setQuery = useSearchStore((s) => s.setQuery);
@@ -88,6 +91,7 @@ export default function InventoryPage() {
   const [stockView, setStockView] = useState<StockViewMode>(isGodownScoped ? "scoped" : "overall");
   const [addStockOpen, setAddStockOpen] = useState(false);
   const [addProductOpen, setAddProductOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const [selectedProductId, setSelectedProductId] = useState<string | undefined>(undefined);
 
   const stockFilter = parseStockFilter(searchParams.get("filter"));
@@ -180,9 +184,17 @@ export default function InventoryPage() {
               </SelectContent>
             </Select>
             <StockExportDialog label="Export" variant="outline" />
+            {canImport ? (
+              <Button variant="outline" onClick={() => setImportOpen(true)}>
+                <FileUp className="h-4 w-4" />
+                Import
+              </Button>
+            ) : null}
           </>
         }
       />
+
+      <StockImportDialog open={importOpen} onOpenChange={setImportOpen} />
 
       {isGodownScoped && (
         <FilterBar>

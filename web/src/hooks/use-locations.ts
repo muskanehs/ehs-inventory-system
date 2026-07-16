@@ -43,6 +43,7 @@ export function useCreateGodown() {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["locations"] });
       void queryClient.invalidateQueries({ queryKey: ["locations", "godowns", "summary"] });
+      void queryClient.invalidateQueries({ queryKey: ["switchable-users"] });
     }
   });
 }
@@ -61,6 +62,23 @@ export function useUpdateGodown() {
       void queryClient.invalidateQueries({ queryKey: ["transfers"] });
       void queryClient.invalidateQueries({ queryKey: ["inventory"] });
       void queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      void queryClient.invalidateQueries({ queryKey: ["switchable-users"] });
+    }
+  });
+}
+
+export function useDeleteGodown() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const response = await api.delete<ApiResponse<Location>>(`/locations/${id}`);
+      return response.data.data;
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["locations"] });
+      void queryClient.invalidateQueries({ queryKey: ["locations", "godowns", "summary"] });
+      void queryClient.invalidateQueries({ queryKey: ["switchable-users"] });
     }
   });
 }

@@ -1,0 +1,282 @@
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable
+} from "@nestjs/common";
+import { MovementType, Role } from "@prisma/client";
+import type { AuthUserPayload } from "../common/types/auth-user";
+import {
+  DEFAULT_PRODUCT_UNIT,
+  PRODUCT_UNITS
+} from "../common/constants/product-units";
+import {
+  ExcelColumn,
+  ExcelExportService,
+  ParsedSheetRow
+} from "../common/export/excel-export.service";
+import { NOT_DELETED } from "../common/utils/soft-delete";
+import { MovementsService } from "../movements/movements.service";
+import { PrismaService } from "../prisma/prisma.service";
+import { ProductsService } from "../products/products.service";
+import { CreateProductDto } from "../products/dto/create-product.dto";
+import type { UploadedImportFile } from "./import.types";
+
+export type ImportRowError = { row: number; message: string };
+
+export type ImportSummary = {
+  created: number;
+  skipped: number;
+  errors: ImportRowError[];
+};
+
+const PRODUCT_COLUMNS: ExcelColumn[] = [
+  { header: "name", key: "name", width: 28 },
+  { header: "category", key: "category", width: 20 },
+  { header: "sku", key: "sku", width: 16 },
+  { header: "barcode", key: "barcode", width: 18 },
+  { header: "unit", key: "unit", width: 12 },
+  { header: "minimumStockLevel", key: "minimumStockLevel", width: 18 },
+  { header: "isActive", key: "isActive", width: 12 }
+];
+
+const STOCK_COLUMNS: ExcelColumn[] = [
+  { header: "sku", key: "sku", width: 16 },
+  { header: "productName", key: "productName", width: 28 },
+  { header: "locationName", key: "locationName", width: 24 },
+  { header: "quantity", key: "quantity", width: 12 },
+  { header: "remarks", key: "remarks", width: 32 }
+];
+
+const PRODUCT_HEADERS = PRODUCT_COLUMNS.map((c) => c.header);
+const STOCK_HEADERS = STOCK_COLUMNS.map((c) => c.header);
+
+function parseBoolean(value: string | undefined, defaultValue: boolean): boolean {
+  if (!value) return defaultValue;
+  const normalized = value.trim().toLowerCase();
+  if (["true", "1", "yes", "y"].includes(normalized)) return true;
+  if (["false", "0", "no", "n"].includes(normalized)) return false;
+  return defaultValue;
+}
+
+@Injectable()
+export class ImportService {
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly excelExport: ExcelExportService,
+    private readonly productsService: ProductsService,
+    private readonly movementsService: MovementsService
+  ) {}
+
+  productTemplate(format: "csv" | "xlsx") {
+    return this.buildTemplate(PRODUCT_COLUMNS, "product-import-template", format);
+  }
+
+  stockTemplate(format: "csv" | "xlsx") {
+    return this.buildTemplate(STOCK_COLUMNS, "stock-import-template", format);
+  }
+
+  private async buildTemplate(
+    columns: ExcelColumn[],
+    filename: string,
+    format: "csv" | "xlsx"
+  ) {
+    if (format === "csv") {
+      const header = columns.map((c) => c.header).join(",");
+      return {
+        buffer: Buffer.from(`${header}\n`, "utf-8"),
+        filename: `${filename}.csv`,
+        contentType: "text/csv"
+      };
+    }
+    const buffer = await this.excelExport.buildWorkbook(columns, []);
+    return {
+      buffer,
+      filename: `${filename}.xlsx`,
+      contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    };
+  }
+
+  private async parseUpload(
+    file: UploadedImportFile,
+    expectedHeaders: string[]
+  ): Promise<ParsedSheetRow[]> {
+    if (!file?.buffer?.length) {
+      throw new BadRequestException("No file uploaded");
+    }
+    const name = file.originalname.toLowerCase();
+    if (name.endsWith(".csv")) {
+      return this.excelExport.parseCsv(file.buffer, expectedHeaders);
+    }
+    if (name.endsWith(".xlsx") || name.endsWith(".xls")) {
+      return this.excelExport.parseWorkbook(file.buffer, expectedHeaders);
+    }
+    throw new BadRequestException("File must be .xlsx or .csv");
+  }
+
+  async importProducts(file: UploadedImportFile): Promise<ImportSummary> {
+    const rows = await this.parseUpload(file, PRODUCT_HEADERS);
+    const summary: ImportSummary = { created: 0, skipped: 0, errors: [] };
+
+    for (let index = 0; index < rows.length; index += 1) {
+      const rowNumber = index + 2;
+      const row = rows[index];
+      try {
+        const name = row.name?.trim();
+        const categoryName = row.category?.trim();
+        if (!name || name.length < 2) {
+          throw new Error("name is required (min 2 characters)");
+        }
+        if (!categoryName) {
+          throw new Error("category is required");
+        }
+
+        const category = await this.prisma.category.findFirst({
+          where: {
+            name: { equals: categoryName, mode: "insensitive" },
+            ...NOT_DELETED
+          }
+        });
+        if (!category) {
+          throw new Error(`Category "${categoryName}" not found`);
+        }
+
+        const sku = row.sku?.trim() || undefined;
+        if (sku) {
+          const existingSku = await this.prisma.product.findFirst({
+            where: { sku, ...NOT_DELETED }
+          });
+          if (existingSku) {
+            summary.skipped += 1;
+            continue;
+          }
+        }
+
+        const barcode = row.barcode?.trim() || undefined;
+        if (barcode) {
+          const existingBarcode = await this.prisma.product.findFirst({
+            where: { barcode, ...NOT_DELETED }
+          });
+          if (existingBarcode) {
+            throw new Error(`Barcode "${barcode}" already exists`);
+          }
+        }
+
+        const unit = row.unit?.trim() || DEFAULT_PRODUCT_UNIT;
+        if (!PRODUCT_UNITS.includes(unit as (typeof PRODUCT_UNITS)[number])) {
+          throw new Error(`unit must be one of: ${PRODUCT_UNITS.join(", ")}`);
+        }
+
+        const minimumStockLevel = row.minimumstocklevel
+          ? Number.parseInt(row.minimumstocklevel, 10)
+          : 0;
+        if (!Number.isFinite(minimumStockLevel) || minimumStockLevel < 0) {
+          throw new Error("minimumStockLevel must be a non-negative integer");
+        }
+
+        const dto: CreateProductDto = {
+          name,
+          categoryId: category.id,
+          sku,
+          barcode,
+          unit,
+          minimumStockLevel
+        };
+        const product = await this.productsService.create(dto);
+        const isActive = parseBoolean(row.isactive, true);
+        if (!isActive) {
+          await this.prisma.product.update({
+            where: { id: product.id },
+            data: { isActive: false }
+          });
+        }
+        summary.created += 1;
+      } catch (error) {
+        summary.errors.push({
+          row: rowNumber,
+          message: error instanceof Error ? error.message : String(error)
+        });
+      }
+    }
+
+    return summary;
+  }
+
+  async importStock(file: UploadedImportFile, user: AuthUserPayload): Promise<ImportSummary> {
+    const rows = await this.parseUpload(file, STOCK_HEADERS);
+    const summary: ImportSummary = { created: 0, skipped: 0, errors: [] };
+
+    for (let index = 0; index < rows.length; index += 1) {
+      const rowNumber = index + 2;
+      const row = rows[index];
+      try {
+        const sku = row.sku?.trim();
+        const productName = row.productname?.trim();
+        if (!sku && !productName) {
+          throw new Error("sku or productName is required");
+        }
+
+        const product = sku
+          ? await this.prisma.product.findFirst({
+              where: { sku, ...NOT_DELETED, isActive: true }
+            })
+          : await this.prisma.product.findFirst({
+              where: {
+                name: { equals: productName!, mode: "insensitive" },
+                ...NOT_DELETED,
+                isActive: true
+              }
+            });
+        if (!product) {
+          throw new Error(sku ? `Product with SKU "${sku}" not found` : `Product "${productName}" not found`);
+        }
+
+        const locationName = row.locationname?.trim();
+        if (!locationName) {
+          throw new Error("locationName is required");
+        }
+
+        const location = await this.prisma.location.findFirst({
+          where: {
+            name: { equals: locationName, mode: "insensitive" },
+            ...NOT_DELETED
+          }
+        });
+        if (!location) {
+          throw new Error(`Location "${locationName}" not found`);
+        }
+
+        if (user.role === Role.GODOWN_MANAGER) {
+          if (!user.assignedLocationId || location.id !== user.assignedLocationId) {
+            throw new ForbiddenException("You can only import stock into your assigned godown");
+          }
+        }
+
+        const quantity = Number.parseInt(row.quantity ?? "", 10);
+        if (!Number.isFinite(quantity) || quantity < 1) {
+          throw new Error("quantity must be a positive integer");
+        }
+
+        const remarks = row.remarks?.trim();
+        await this.movementsService.createMovement(
+          {
+            productId: product.id,
+            toLocationId: location.id,
+            quantity,
+            movementType: MovementType.PURCHASE,
+            remarks: remarks ? `Bulk import — ${remarks}` : "Bulk import",
+            performedBy: user.sub
+          },
+          user
+        );
+        summary.created += 1;
+      } catch (error) {
+        summary.errors.push({
+          row: rowNumber,
+          message: error instanceof Error ? error.message : String(error)
+        });
+      }
+    }
+
+    return summary;
+  }
+}

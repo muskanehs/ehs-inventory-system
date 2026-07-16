@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Header,
   Headers,
@@ -103,5 +104,11 @@ export class LocationsController {
   @Patch(":id")
   updateGodown(@Param("id") id: string, @Body() dto: UpdateLocationDto) {
     return this.locationsService.updateGodown(id, dto);
+  }
+
+  @Roles(Role.ADMIN)
+  @Delete(":id")
+  removeGodown(@Param("id") id: string, @CurrentUser() user: AuthUserPayload) {
+    return this.locationsService.removeGodown(id, user.sub);
   }
 }

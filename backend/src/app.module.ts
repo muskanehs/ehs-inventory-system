@@ -19,6 +19,7 @@ import { TransfersModule } from "./transfers/transfers.module";
 import { UsersModule } from "./users/users.module";
 import { RedisModule } from "./common/redis/redis.module";
 import { HealthModule } from "./health/health.module";
+import { ImportModule } from "./import/import.module";
 
 @Module({
   imports: [
@@ -40,6 +41,7 @@ import { HealthModule } from "./health/health.module";
     CategoriesModule,
     ProductsModule,
     LocationsModule,
+    ImportModule,
     InventoryModule,
     MovementsModule,
     TransfersModule,

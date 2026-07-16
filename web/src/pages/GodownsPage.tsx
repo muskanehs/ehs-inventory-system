@@ -1,5 +1,5 @@
 import { FormEvent, useMemo, useState } from "react";
-import { Building2, Ellipsis, Loader2, Pencil, Plus, Warehouse } from "lucide-react";
+import { Building2, Ellipsis, Loader2, Pencil, Plus, Trash2, Warehouse } from "lucide-react";
 import { toast } from "sonner";
 import { CompactStatRow } from "@/components/enterprise/CompactStatRow";
 import { ExportButton } from "@/components/ExportButton";
@@ -26,6 +26,7 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   useCreateGodown,
+  useDeleteGodown,
   useGodownsSummary,
   useUpdateGodown
 } from "@/hooks/use-locations";
@@ -37,10 +38,12 @@ import { useAuthStore } from "@/store/auth";
 
 function GodownCard({
   godown,
-  onEdit
+  onEdit,
+  onDelete
 }: {
   godown: GodownSummary;
   onEdit: (godown: GodownSummary) => void;
+  onDelete: (godown: GodownSummary) => void;
 }) {
   const updatedLabel = godown.updatedAt ? formatRelativeDate(godown.updatedAt) : "-";
 
@@ -85,6 +88,13 @@ function GodownCard({
             <Pencil className="mr-2 h-4 w-4" />
             Edit name
           </DropdownMenuItem>
+          <DropdownMenuItem
+            className="text-destructive focus:text-destructive"
+            onClick={() => onDelete(godown)}
+          >
+            <Trash2 className="mr-2 h-4 w-4" />
+            Delete godown
+          </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
     </div>
@@ -95,16 +105,19 @@ export default function GodownsPage() {
   const role = useAuthStore((s) => s.role);
   const { debouncedQuery } = useGlobalSearch();
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<GodownSummary | null>(null);
   const [editing, setEditing] = useState<GodownSummary | null>(null);
   const [name, setName] = useState("");
 
   const { data: summary, isLoading, isError, refetch } = useGodownsSummary();
   const createGodown = useCreateGodown();
   const updateGodown = useUpdateGodown();
+  const deleteGodown = useDeleteGodown();
 
   const godowns = summary?.godowns ?? [];
   const isEditMode = Boolean(editing);
   const saving = createGodown.isPending || updateGodown.isPending;
+  const deleting = deleteGodown.isPending;
 
   const stats = useMemo(
     () => [
@@ -171,6 +184,30 @@ export default function GodownsPage() {
     }
   };
 
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    try {
+      await deleteGodown.mutateAsync(deleteTarget.id);
+      toast.success("Godown deleted", {
+        description: `"${deleteTarget.name}" was removed. Past transfers remain visible in Activity.`
+      });
+      setDeleteTarget(null);
+    } catch (error: unknown) {
+      const message =
+        error && typeof error === "object" && "response" in error
+          ? (error as { response?: { data?: { error?: { message?: string } | string } } }).response
+              ?.data?.error
+          : undefined;
+      const description =
+        typeof message === "string"
+          ? message
+          : message && typeof message === "object" && "message" in message
+            ? String((message as { message?: string }).message)
+            : "This godown may still have stock on hand.";
+      toast.error("Could not delete godown", { description });
+    }
+  };
+
   if (role !== "ADMIN") {
     return <Navigate to="/" replace />;
   }
@@ -229,7 +266,12 @@ export default function GodownsPage() {
         ) : (
           <div className="grid gap-2 sm:grid-cols-2">
             {filtered.map((godown) => (
-              <GodownCard key={godown.id} godown={godown} onEdit={openEdit} />
+              <GodownCard
+                key={godown.id}
+                godown={godown}
+                onEdit={openEdit}
+                onDelete={setDeleteTarget}
+              />
             ))}
           </div>
         )}
@@ -283,6 +325,32 @@ export default function GodownsPage() {
               </Button>
             </div>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={Boolean(deleteTarget)} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Delete godown?</DialogTitle>
+            <DialogDescription>
+              {deleteTarget
+                ? `"${deleteTarget.name}" can only be deleted when it has no stock on hand. Past transfers involving this godown will remain visible in Activity and Transfers.`
+                : ""}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="outline" onClick={() => setDeleteTarget(null)}>
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              disabled={deleting}
+              onClick={() => void handleDelete()}
+            >
+              {deleting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Delete"}
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </PageShell>

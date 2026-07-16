@@ -1,5 +1,19 @@
 import { api } from "@/lib/api";
 
+export async function uploadImport(path: string, file: File) {
+  const formData = new FormData();
+  formData.append("file", file);
+  const response = await api.post(path, formData, {
+    headers: { "Content-Type": "multipart/form-data" }
+  });
+  return response.data.data as {
+    created: number;
+    skipped: number;
+    errors: { row: number; message: string }[];
+  };
+}
+
+
 type ExportParams = Record<string, string | undefined>;
 
 async function downloadBlob(response: { data: Blob; headers: unknown }, filename: string) {

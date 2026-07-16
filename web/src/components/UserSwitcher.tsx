@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Check, ChevronsUpDown, Loader2, Users } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -11,16 +11,9 @@ import {
   DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
 import { api } from "@/lib/api";
-import type { ApiResponse, AuthUser, Role } from "@/lib/types";
+import { useSwitchableUsers, type SwitchableUser } from "@/hooks/use-switchable-users";
+import type { ApiResponse, AuthUser } from "@/lib/types";
 import { useAuthStore } from "@/store/auth";
-
-type SwitchableUser = {
-  id: string;
-  name: string;
-  email: string;
-  role: Role;
-  assignedLocation?: { id: string; name: string } | null;
-};
 
 type SwitchResponse = {
   accessToken: string;
@@ -28,7 +21,7 @@ type SwitchResponse = {
   user: AuthUser;
 };
 
-function formatRole(role: Role) {
+function formatRole(role: SwitchableUser["role"]) {
   return role.replace(/_/g, " ");
 }
 
@@ -41,34 +34,14 @@ function accountLabel(user: SwitchableUser) {
 
 export function UserSwitcher() {
   const [switching, setSwitching] = useState(false);
-  const [loadingUsers, setLoadingUsers] = useState(false);
-  const [users, setUsers] = useState<SwitchableUser[]>([]);
   const email = useAuthStore((s) => s.email);
   const canSwitchUsers = useAuthStore((s) => s.canSwitchUsers);
   const mustChangePassword = useAuthStore((s) => s.mustChangePassword);
   const setAuth = useAuthStore((s) => s.setAuth);
 
-  useEffect(() => {
-    if (!canSwitchUsers || mustChangePassword) return;
-
-    let cancelled = false;
-    setLoadingUsers(true);
-    void api
-      .get<ApiResponse<SwitchableUser[]>>("/auth/switchable-users")
-      .then((response) => {
-        if (!cancelled) setUsers(response.data.data);
-      })
-      .catch(() => {
-        if (!cancelled) setUsers([]);
-      })
-      .finally(() => {
-        if (!cancelled) setLoadingUsers(false);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [canSwitchUsers, mustChangePassword]);
+  const { data: users = [], isLoading: loadingUsers } = useSwitchableUsers(
+    canSwitchUsers && !mustChangePassword
+  );
 
   if (!canSwitchUsers || mustChangePassword) {
     return null;

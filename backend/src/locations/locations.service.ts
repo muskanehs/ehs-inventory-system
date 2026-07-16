@@ -13,9 +13,10 @@ import {
   assertGodownAssignment,
   isPrivilegedInventoryRole
 } from "../common/utils/location-scope";
+import { NOT_DELETED, softDeleteData } from "../common/utils/soft-delete";
+import { provisionGodownManager } from "../users/provision-godown-manager";
 import { CreateLocationDto } from "./dto/create-location.dto";
 import { UpdateLocationDto } from "./dto/update-location.dto";
-import { NOT_DELETED } from "../common/utils/soft-delete";
 
 export type GodownSummary = {
   id: string;
@@ -144,18 +145,23 @@ export class LocationsService {
   }
 
   async createGodown(dto: CreateLocationDto) {
+    const trimmed = dto.name.trim();
     const existing = await this.prisma.location.findFirst({
-      where: { name: dto.name.trim(), ...NOT_DELETED }
+      where: { name: trimmed, ...NOT_DELETED }
     });
     if (existing) {
-      throw new ConflictException(`A location named "${dto.name}" already exists`);
+      throw new ConflictException(`A location named "${trimmed}" already exists`);
     }
 
-    return this.prisma.location.create({
-      data: {
-        name: dto.name.trim(),
-        type: LocationType.GODOWN
-      }
+    return this.prisma.$transaction(async (tx) => {
+      const godown = await tx.location.create({
+        data: {
+          name: trimmed,
+          type: LocationType.GODOWN
+        }
+      });
+      const manager = await provisionGodownManager(tx, godown);
+      return { ...godown, manager };
     });
   }
 
@@ -179,9 +185,61 @@ export class LocationsService {
       throw new ConflictException(`A location named "${trimmed}" already exists`);
     }
 
-    return this.prisma.location.update({
-      where: { id },
-      data: { name: trimmed }
+    return this.prisma.$transaction(async (tx) => {
+      const updated = await tx.location.update({
+        where: { id },
+        data: { name: trimmed }
+      });
+      await tx.user.updateMany({
+        where: {
+          assignedLocationId: id,
+          role: Role.GODOWN_MANAGER,
+          ...NOT_DELETED
+        },
+        data: { name: `${trimmed} Manager` }
+      });
+      return updated;
+    });
+  }
+
+  async removeGodown(id: string, deletedBy?: string) {
+    const godown = await this.prisma.location.findFirst({
+      where: { id, type: LocationType.GODOWN, ...NOT_DELETED }
+    });
+    if (!godown) {
+      throw new NotFoundException("Godown not found");
+    }
+
+    const stockOnHand = await this.prisma.inventory.aggregate({
+      where: { locationId: id, quantity: { gt: 0 }, product: NOT_DELETED },
+      _sum: { quantity: true }
+    });
+    if ((stockOnHand._sum.quantity ?? 0) > 0) {
+      throw new ConflictException(
+        "Cannot delete godown with stock on hand. Move or clear stock first."
+      );
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      await tx.inventory.deleteMany({ where: { locationId: id } });
+
+      await tx.user.updateMany({
+        where: {
+          assignedLocationId: id,
+          role: Role.GODOWN_MANAGER,
+          ...NOT_DELETED
+        },
+        data: {
+          ...softDeleteData(deletedBy),
+          assignedLocationId: null,
+          isActive: false
+        }
+      });
+
+      return tx.location.update({
+        where: { id },
+        data: softDeleteData(deletedBy)
+      });
     });
   }
 
