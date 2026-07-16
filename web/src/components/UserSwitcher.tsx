@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Check, ChevronsUpDown, Loader2, Users } from "lucide-react";
+import { Check, ChevronsUpDown, Loader2, LogIn, Users } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -34,25 +34,25 @@ function accountLabel(user: SwitchableUser) {
 
 export function UserSwitcher() {
   const [switching, setSwitching] = useState(false);
+  const role = useAuthStore((s) => s.role);
   const email = useAuthStore((s) => s.email);
   const canSwitchUsers = useAuthStore((s) => s.canSwitchUsers);
   const mustChangePassword = useAuthStore((s) => s.mustChangePassword);
   const setAuth = useAuthStore((s) => s.setAuth);
 
+  const isAdminSession = role === "ADMIN";
+  const isImpersonating = canSwitchUsers && !isAdminSession;
+
   const { data: users = [], isLoading: loadingUsers } = useSwitchableUsers(
     canSwitchUsers && !mustChangePassword
   );
 
-  if (!canSwitchUsers || mustChangePassword) {
+  // Full account switcher is admin / main-store only — never on godown manager views.
+  if (!canSwitchUsers || mustChangePassword || (!isAdminSession && !isImpersonating)) {
     return null;
   }
 
-  const currentAccount = users.find((account) => account.email === email);
-
-  const handleSwitch = async (userId: string) => {
-    const account = users.find((item) => item.id === userId);
-    if (!account || account.email === email) return;
-
+  const applySwitch = async (account: SwitchableUser) => {
     setSwitching(true);
     try {
       const response = await api.post<ApiResponse<SwitchResponse>>("/auth/switch-user", {
@@ -80,6 +80,45 @@ export function UserSwitcher() {
       setSwitching(false);
     }
   };
+
+  const handleSwitch = async (userId: string) => {
+    const account = users.find((item) => item.id === userId);
+    if (!account || account.email === email) return;
+    await applySwitch(account);
+  };
+
+  const handleReturnToAdmin = async () => {
+    const admin = users.find((account) => account.role === "ADMIN");
+    if (!admin) {
+      toast.error("Could not return to admin", {
+        description: "No admin account was found in the switch list."
+      });
+      return;
+    }
+    await applySwitch(admin);
+  };
+
+  if (isImpersonating) {
+    return (
+      <Button
+        variant="outline"
+        size="sm"
+        className="gap-1.5 border-border/60 text-muted-foreground"
+        disabled={switching || loadingUsers}
+        onClick={() => void handleReturnToAdmin()}
+        aria-label="Return to admin"
+      >
+        {switching || loadingUsers ? (
+          <Loader2 className="h-4 w-4 animate-spin" />
+        ) : (
+          <LogIn className="h-4 w-4" />
+        )}
+        <span className="max-w-[100px] truncate sm:max-w-[140px]">Return to admin</span>
+      </Button>
+    );
+  }
+
+  const currentAccount = users.find((account) => account.email === email);
 
   return (
     <DropdownMenu>

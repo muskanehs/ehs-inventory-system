@@ -132,8 +132,16 @@ export class CategoriesService {
   }
 
   async getListEtag() {
-    const count = await this.prisma.category.count({ where: NOT_DELETED });
-    return `"categories-${count}"`;
+    const [categoryCount, productAgg] = await Promise.all([
+      this.prisma.category.count({ where: NOT_DELETED }),
+      this.prisma.product.aggregate({
+        where: NOT_DELETED,
+        _count: true,
+        _max: { updatedAt: true }
+      })
+    ]);
+    // Product count + latest product update so imports/reassignments bust HTTP cache.
+    return `"categories-${categoryCount}-${productAgg._count}-${productAgg._max.updatedAt?.getTime() ?? 0}"`;
   }
 
   assertNotModified(ifNoneMatch: string | undefined, etag: string) {
