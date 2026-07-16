@@ -1,4 +1,4 @@
-import { IsBoolean, IsIn, IsInt, IsOptional, IsString, Min, MinLength, ValidateIf } from "class-validator";
+import { IsIn, IsInt, IsOptional, IsString, Min, MinLength, ValidateIf } from "class-validator";
 import { PRODUCT_UNITS } from "../../common/constants/product-units";
 
 export class UpdateProductDto {
@@ -25,15 +25,7 @@ export class UpdateProductDto {
   unit?: string;
 
   @IsOptional()
-  @IsString()
-  barcode?: string;
-
-  @IsOptional()
   @IsInt()
   @Min(0)
   minimumStockLevel?: number;
-
-  @IsOptional()
-  @IsBoolean()
-  isActive?: boolean;
 }

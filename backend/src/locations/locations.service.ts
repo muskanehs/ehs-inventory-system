@@ -26,6 +26,7 @@ export type GodownSummary = {
   updatedAt: Date;
   productCount: number;
   totalUnits: number;
+  managerEmail: string | null;
 };
 
 @Injectable()
@@ -107,7 +108,7 @@ export class LocationsService {
     }
 
     const godownIds = godowns.map((g) => g.id);
-    const [unitAgg, productRows] = await Promise.all([
+    const [unitAgg, productRows, managers] = await Promise.all([
       this.prisma.inventory.groupBy({
         by: ["locationId"],
         where: { locationId: { in: godownIds }, product: NOT_DELETED },
@@ -116,10 +117,24 @@ export class LocationsService {
       this.prisma.inventory.findMany({
         where: { locationId: { in: godownIds }, quantity: { gt: 0 }, product: NOT_DELETED },
         select: { locationId: true, productId: true }
+      }),
+      this.prisma.user.findMany({
+        where: {
+          role: Role.GODOWN_MANAGER,
+          assignedLocationId: { in: godownIds },
+          ...NOT_DELETED,
+          isActive: true
+        },
+        select: { assignedLocationId: true, email: true }
       })
     ]);
 
     const unitsByLocation = new Map(unitAgg.map((row) => [row.locationId, row._sum.quantity ?? 0]));
+    const emailByGodown = new Map(
+      managers
+        .filter((m) => m.assignedLocationId)
+        .map((m) => [m.assignedLocationId!, m.email])
+    );
     const productsByLocation = new Map<string, Set<string>>();
     for (const row of productRows) {
       if (!productsByLocation.has(row.locationId)) {
@@ -131,7 +146,8 @@ export class LocationsService {
     const summaries: GodownSummary[] = godowns.map((godown) => ({
       ...godown,
       productCount: productsByLocation.get(godown.id)?.size ?? 0,
-      totalUnits: unitsByLocation.get(godown.id) ?? 0
+      totalUnits: unitsByLocation.get(godown.id) ?? 0,
+      managerEmail: emailByGodown.get(godown.id) ?? null
     }));
 
     return {

@@ -22,10 +22,6 @@ export class CreateProductDto {
   unit: string = DEFAULT_PRODUCT_UNIT;
 
   @IsOptional()
-  @IsString()
-  barcode?: string;
-
-  @IsOptional()
   @IsInt()
   @Min(0)
   minimumStockLevel?: number;

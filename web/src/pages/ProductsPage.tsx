@@ -17,7 +17,6 @@ import { PageHeader } from "@/components/PageHeader";
 import { PageShell } from "@/components/PageShell";
 import { ProductFormDialog } from "@/components/products/ProductFormDialog";
 import { FilterBar, SearchInput } from "@/components/SearchInput";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -59,15 +58,10 @@ export default function ProductsPage() {
   const { data: products = [], isLoading, isError, refetch } = useProducts(search);
   const deleteProduct = useDeleteProduct();
 
-  const stats = useMemo(() => {
-    const active = products.filter((p) => p.isActive).length;
-    const inactive = products.length - active;
-    return [
-      { label: "Total Products", value: formatNumber(products.length) },
-      { label: "Active", value: formatNumber(active) },
-      { label: "Inactive", value: formatNumber(inactive) }
-    ];
-  }, [products]);
+  const stats = useMemo(
+    () => [{ label: "Total Products", value: formatNumber(products.length) }],
+    [products]
+  );
 
   const filtered = useMemo(() => {
     let list = [...products];
@@ -207,7 +201,7 @@ export default function ProductsPage() {
             setSearch(value);
             setPage(1);
           }}
-          placeholder="Search products, SKU, barcode..."
+          placeholder="Search products or SKU..."
           ariaLabel="Search products"
         />
       </FilterBar>
@@ -263,7 +257,6 @@ export default function ProductsPage() {
                       <TableHead className="h-9 px-4 py-2 text-right">
                         <SortButton field="minimumStockLevel" label="Min Stock" />
                       </TableHead>
-                      <TableHead className="h-9 px-4 py-2">Status</TableHead>
                       <TableHead className="h-9 w-12 px-4 py-2 text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -280,11 +273,6 @@ export default function ProductsPage() {
                         <TableCell className="px-4 py-2.5">{product.unit}</TableCell>
                         <TableCell className="px-4 py-2.5 text-right tabular-nums">
                           {formatNumber(product.minimumStockLevel)}
-                        </TableCell>
-                        <TableCell className="px-4 py-2.5">
-                          <Badge variant={product.isActive ? "success" : "secondary"}>
-                            {product.isActive ? "Active" : "Inactive"}
-                          </Badge>
                         </TableCell>
                         <TableCell className="px-4 py-2.5 text-right">
                           <ProductActions product={product} />
@@ -303,9 +291,6 @@ export default function ProductsPage() {
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
                         <p className="font-semibold leading-tight">{product.name}</p>
-                        <Badge variant={product.isActive ? "success" : "secondary"}>
-                          {product.isActive ? "Active" : "Inactive"}
-                        </Badge>
                       </div>
                       <p className="mt-1 font-mono text-xs text-muted-foreground">{product.sku ?? "-"}</p>
                       <p className="mt-1 text-xs text-muted-foreground">

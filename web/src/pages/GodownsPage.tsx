@@ -55,7 +55,9 @@ function GodownCard({
       <div className="grid min-w-0 flex-1 gap-2 sm:grid-cols-[minmax(0,1fr)_auto_auto_auto] sm:items-center sm:gap-4">
         <div className="min-w-0">
           <p className="truncate text-sm font-semibold">{godown.name}</p>
-          <p className="text-xs text-muted-foreground">Warehouse</p>
+          <p className="truncate text-xs text-muted-foreground">
+            {godown.managerEmail ?? "No login assigned"}
+          </p>
         </div>
         <div className="hidden sm:block">
           <p className="text-xs text-muted-foreground">Products</p>
@@ -131,7 +133,11 @@ export default function GodownsPage() {
   const filtered = useMemo(() => {
     const q = debouncedQuery.trim().toLowerCase();
     if (!q) return godowns;
-    return godowns.filter((g) => g.name.toLowerCase().includes(q));
+    return godowns.filter(
+      (g) =>
+        g.name.toLowerCase().includes(q) ||
+        (g.managerEmail?.toLowerCase().includes(q) ?? false)
+    );
   }, [godowns, debouncedQuery]);
 
   const openCreate = () => {

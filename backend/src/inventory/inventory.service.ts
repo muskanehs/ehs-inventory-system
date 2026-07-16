@@ -114,7 +114,6 @@ export class InventoryService {
     const products = await this.prisma.product.findMany({
       where: {
         ...NOT_DELETED,
-        isActive: true,
         minimumStockLevel: { gt: 0 },
         ...searchWhere
       },

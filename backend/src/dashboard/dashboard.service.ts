@@ -57,7 +57,7 @@ export class DashboardService {
           where: { ...transferWhere, status: TransferStatus.PENDING }
         }),
         this.prisma.product.findMany({
-          where: { isActive: true, ...NOT_DELETED, minimumStockLevel: { gt: 0 } },
+          where: { ...NOT_DELETED, minimumStockLevel: { gt: 0 } },
           include: { category: true }
         }),
         this.prisma.inventory.groupBy({
@@ -84,7 +84,7 @@ export class DashboardService {
 
     const totalProducts = locationId
       ? quantityByProduct.size
-      : await this.prisma.product.count({ where: { isActive: true, ...NOT_DELETED } });
+      : await this.prisma.product.count({ where: { ...NOT_DELETED } });
 
     return {
       totalProducts,

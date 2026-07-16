@@ -33,10 +33,8 @@ const PRODUCT_COLUMNS: ExcelColumn[] = [
   { header: "name", key: "name", width: 28 },
   { header: "category", key: "category", width: 20 },
   { header: "sku", key: "sku", width: 16 },
-  { header: "barcode", key: "barcode", width: 18 },
   { header: "unit", key: "unit", width: 12 },
-  { header: "minimumStockLevel", key: "minimumStockLevel", width: 18 },
-  { header: "isActive", key: "isActive", width: 12 }
+  { header: "minimumStockLevel", key: "minimumStockLevel", width: 18 }
 ];
 
 const STOCK_COLUMNS: ExcelColumn[] = [
@@ -49,14 +47,6 @@ const STOCK_COLUMNS: ExcelColumn[] = [
 
 const PRODUCT_HEADERS = PRODUCT_COLUMNS.map((c) => c.header);
 const STOCK_HEADERS = STOCK_COLUMNS.map((c) => c.header);
-
-function parseBoolean(value: string | undefined, defaultValue: boolean): boolean {
-  if (!value) return defaultValue;
-  const normalized = value.trim().toLowerCase();
-  if (["true", "1", "yes", "y"].includes(normalized)) return true;
-  if (["false", "0", "no", "n"].includes(normalized)) return false;
-  return defaultValue;
-}
 
 @Injectable()
 export class ImportService {
@@ -151,16 +141,6 @@ export class ImportService {
           }
         }
 
-        const barcode = row.barcode?.trim() || undefined;
-        if (barcode) {
-          const existingBarcode = await this.prisma.product.findFirst({
-            where: { barcode, ...NOT_DELETED }
-          });
-          if (existingBarcode) {
-            throw new Error(`Barcode "${barcode}" already exists`);
-          }
-        }
-
         const unit = row.unit?.trim() || DEFAULT_PRODUCT_UNIT;
         if (!PRODUCT_UNITS.includes(unit as (typeof PRODUCT_UNITS)[number])) {
           throw new Error(`unit must be one of: ${PRODUCT_UNITS.join(", ")}`);
@@ -177,18 +157,10 @@ export class ImportService {
           name,
           categoryId: category.id,
           sku,
-          barcode,
           unit,
           minimumStockLevel
         };
-        const product = await this.productsService.create(dto);
-        const isActive = parseBoolean(row.isactive, true);
-        if (!isActive) {
-          await this.prisma.product.update({
-            where: { id: product.id },
-            data: { isActive: false }
-          });
-        }
+        await this.productsService.create(dto);
         summary.created += 1;
       } catch (error) {
         summary.errors.push({
@@ -217,13 +189,12 @@ export class ImportService {
 
         const product = sku
           ? await this.prisma.product.findFirst({
-              where: { sku, ...NOT_DELETED, isActive: true }
+              where: { sku, ...NOT_DELETED }
             })
           : await this.prisma.product.findFirst({
               where: {
                 name: { equals: productName!, mode: "insensitive" },
-                ...NOT_DELETED,
-                isActive: true
+                ...NOT_DELETED
               }
             });
         if (!product) {

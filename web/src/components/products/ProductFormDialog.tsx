@@ -32,6 +32,7 @@ type ProductFormDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   product?: Product | null;
+  renameOnly?: boolean;
 };
 
 type DraftProduct = {
@@ -54,7 +55,12 @@ function emptyDraft(defaultCategoryId = ""): DraftProduct {
   };
 }
 
-export function ProductFormDialog({ open, onOpenChange, product }: ProductFormDialogProps) {
+export function ProductFormDialog({
+  open,
+  onOpenChange,
+  product,
+  renameOnly = false
+}: ProductFormDialogProps) {
   const isEditing = Boolean(product);
   const { data: categories = [] } = useCategories();
   const createProduct = useCreateProduct();
@@ -65,7 +71,6 @@ export function ProductFormDialog({ open, onOpenChange, product }: ProductFormDi
   const [categoryId, setCategoryId] = useState("");
   const [unit, setUnit] = useState<string>(DEFAULT_PRODUCT_UNIT);
   const [minimumStockLevel, setMinimumStockLevel] = useState("0");
-  const [isActive, setIsActive] = useState(true);
   const [rows, setRows] = useState<DraftProduct[]>([emptyDraft()]);
   const [submitting, setSubmitting] = useState(false);
 
@@ -85,7 +90,6 @@ export function ProductFormDialog({ open, onOpenChange, product }: ProductFormDi
       setCategoryId(product.categoryId);
       setUnit(product.unit);
       setMinimumStockLevel(String(product.minimumStockLevel));
-      setIsActive(product.isActive);
     } else {
       setRows([emptyDraft()]);
     }
@@ -163,25 +167,26 @@ export function ProductFormDialog({ open, onOpenChange, product }: ProductFormDi
   const onSubmitEdit = async (e: FormEvent) => {
     e.preventDefault();
 
-    if (!categoryId) {
+    if (!renameOnly && !categoryId) {
       toast.error("Select a category");
       return;
     }
 
     try {
       const trimmedSku = sku.trim();
-      const payload = {
-        name: name.trim(),
-        ...(trimmedSku ? { sku: trimmedSku } : { sku: "" }),
-        categoryId,
-        unit,
-        minimumStockLevel: Number(minimumStockLevel) || 0,
-        isActive
-      };
+      const payload = renameOnly
+        ? { name: name.trim() }
+        : {
+            name: name.trim(),
+            ...(trimmedSku ? { sku: trimmedSku } : { sku: "" }),
+            categoryId,
+            unit,
+            minimumStockLevel: Number(minimumStockLevel) || 0
+          };
 
       if (product) {
         await updateProduct.mutateAsync({ id: product.id, ...payload });
-        toast.success("Product updated");
+        toast.success(renameOnly ? "Product renamed" : "Product updated");
       }
 
       onOpenChange(false);
@@ -203,10 +208,14 @@ export function ProductFormDialog({ open, onOpenChange, product }: ProductFormDi
   if (isEditing) {
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Edit Product</DialogTitle>
-            <DialogDescription>Update product details in the catalog.</DialogDescription>
+            <DialogTitle>{renameOnly ? "Rename Product" : "Edit Product"}</DialogTitle>
+            <DialogDescription>
+              {renameOnly
+                ? "Update the product name across inventory and transfers."
+                : "Update product details in the catalog."}
+            </DialogDescription>
           </DialogHeader>
           <form onSubmit={onSubmitEdit} className="space-y-4">
             <div className="space-y-2">
@@ -216,6 +225,8 @@ export function ProductFormDialog({ open, onOpenChange, product }: ProductFormDi
               </Label>
               <Input id="pname" value={name} onChange={(e) => setName(e.target.value)} required />
             </div>
+            {!renameOnly && (
+              <>
             <div className="space-y-2">
               <Label htmlFor="sku">SKU</Label>
               <Input
@@ -271,24 +282,11 @@ export function ProductFormDialog({ open, onOpenChange, product }: ProductFormDi
                 onChange={(e) => setMinimumStockLevel(e.target.value)}
               />
             </div>
-            <div className="space-y-2">
-              <Label>Status</Label>
-              <Select
-                value={isActive ? "active" : "inactive"}
-                onValueChange={(v) => setIsActive(v === "active")}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="active">Active</SelectItem>
-                  <SelectItem value="inactive">Inactive</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+              </>
+            )}
             <Button type="submit" className="w-full" disabled={isPending}>
               {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-              Save Changes
+              {renameOnly ? "Save name" : "Save Changes"}
             </Button>
           </form>
         </DialogContent>

@@ -29,8 +29,7 @@ export class ProductsService {
       ? {
           OR: [
             { name: { contains: query, mode: "insensitive" } },
-            { sku: { contains: query, mode: "insensitive" } },
-            { barcode: { contains: query, mode: "insensitive" } }
+            { sku: { contains: query, mode: "insensitive" } }
           ]
         }
       : undefined;
@@ -72,24 +71,23 @@ export class ProductsService {
   }
 
   async create(dto: CreateProductDto) {
+    const name = dto.name.trim();
     const sku = this.normalizeSku(dto.sku);
 
     if (sku) {
-      const existing = await this.prisma.product.findFirst({
+      const existingSku = await this.prisma.product.findFirst({
         where: { sku, ...NOT_DELETED }
       });
-      if (existing) {
+      if (existingSku) {
         throw new ConflictException(`A product with SKU "${sku}" already exists`);
       }
     }
 
-    if (dto.barcode?.trim()) {
-      const existingBarcode = await this.prisma.product.findFirst({
-        where: { barcode: dto.barcode.trim(), ...NOT_DELETED }
-      });
-      if (existingBarcode) {
-        throw new ConflictException(`A product with barcode "${dto.barcode}" already exists`);
-      }
+    const existingName = await this.prisma.product.findFirst({
+      where: { name: { equals: name, mode: "insensitive" }, ...NOT_DELETED }
+    });
+    if (existingName) {
+      throw new ConflictException(`A product named "${name}" already exists`);
     }
 
     const category = await this.prisma.category.findFirst({
@@ -99,13 +97,71 @@ export class ProductsService {
       throw new NotFoundException("Category not found");
     }
 
+    const deletedMatch = await this.findDeletedProductMatch(name, sku);
+    if (deletedMatch) {
+      return this.reactivateFromCreate(deletedMatch.id, dto);
+    }
+
     return this.prisma.product.create({
       data: {
-        name: dto.name.trim(),
+        name,
         sku,
         categoryId: dto.categoryId,
         unit: dto.unit.trim(),
-        barcode: dto.barcode?.trim(),
+        minimumStockLevel: dto.minimumStockLevel ?? 0
+      },
+      include: this.productInclude
+    });
+  }
+
+  private async findDeletedProductMatch(name: string, sku: string | null) {
+    if (sku) {
+      const bySku = await this.prisma.product.findFirst({
+        where: { sku, isDeleted: true }
+      });
+      if (bySku) return bySku;
+    }
+
+    return this.prisma.product.findFirst({
+      where: { name: { equals: name, mode: "insensitive" }, isDeleted: true }
+    });
+  }
+
+  private async reactivateFromCreate(id: string, dto: CreateProductDto) {
+    const name = dto.name.trim();
+    const sku = this.normalizeSku(dto.sku);
+
+    if (sku) {
+      const skuConflict = await this.prisma.product.findFirst({
+        where: { sku, NOT: { id }, ...NOT_DELETED }
+      });
+      if (skuConflict) {
+        throw new ConflictException(`A product with SKU "${sku}" already exists`);
+      }
+    }
+
+    const nameConflict = await this.prisma.product.findFirst({
+      where: { name: { equals: name, mode: "insensitive" }, NOT: { id }, ...NOT_DELETED }
+    });
+    if (nameConflict) {
+      throw new ConflictException(`A product named "${name}" already exists`);
+    }
+
+    const category = await this.prisma.category.findFirst({
+      where: { id: dto.categoryId, ...NOT_DELETED }
+    });
+    if (!category) {
+      throw new NotFoundException("Category not found");
+    }
+
+    return this.prisma.product.update({
+      where: { id },
+      data: {
+        ...restoreData(),
+        name,
+        sku,
+        categoryId: dto.categoryId,
+        unit: dto.unit.trim(),
         minimumStockLevel: dto.minimumStockLevel ?? 0
       },
       include: this.productInclude
@@ -115,6 +171,16 @@ export class ProductsService {
   async update(id: string, dto: UpdateProductDto) {
     await this.findOne(id);
 
+    const nextName = dto.name !== undefined ? dto.name.trim() : undefined;
+    if (nextName) {
+      const existingName = await this.prisma.product.findFirst({
+        where: { name: { equals: nextName, mode: "insensitive" }, NOT: { id }, ...NOT_DELETED }
+      });
+      if (existingName) {
+        throw new ConflictException(`A product named "${nextName}" already exists`);
+      }
+    }
+
     const nextSku = dto.sku !== undefined ? this.normalizeSku(dto.sku) : undefined;
     if (nextSku) {
       const existing = await this.prisma.product.findFirst({
@@ -122,15 +188,6 @@ export class ProductsService {
       });
       if (existing) {
         throw new ConflictException(`A product with SKU "${nextSku}" already exists`);
-      }
-    }
-
-    if (dto.barcode) {
-      const existing = await this.prisma.product.findFirst({
-        where: { barcode: dto.barcode.trim(), NOT: { id }, ...NOT_DELETED }
-      });
-      if (existing) {
-        throw new ConflictException(`A product with barcode "${dto.barcode}" already exists`);
       }
     }
 
@@ -146,13 +203,11 @@ export class ProductsService {
     return this.prisma.product.update({
       where: { id },
       data: {
-        ...(dto.name !== undefined && { name: dto.name.trim() }),
+        ...(dto.name !== undefined && { name: nextName }),
         ...(nextSku !== undefined && { sku: nextSku }),
         ...(dto.categoryId !== undefined && { categoryId: dto.categoryId }),
         ...(dto.unit !== undefined && { unit: dto.unit.trim() }),
-        ...(dto.barcode !== undefined && { barcode: dto.barcode.trim() || null }),
-        ...(dto.minimumStockLevel !== undefined && { minimumStockLevel: dto.minimumStockLevel }),
-        ...(dto.isActive !== undefined && { isActive: dto.isActive })
+        ...(dto.minimumStockLevel !== undefined && { minimumStockLevel: dto.minimumStockLevel })
       },
       include: this.productInclude
     });
@@ -166,7 +221,7 @@ export class ProductsService {
     });
     if (stockCount > 0) {
       throw new ConflictException(
-        "Cannot delete product with existing stock. Clear stock first or deactivate the product."
+        "Cannot delete product with existing stock. Clear stock first."
       );
     }
 
@@ -175,7 +230,7 @@ export class ProductsService {
     });
     if (transferRefs > 0) {
       throw new ConflictException(
-        "Cannot delete product referenced in transfer history. Deactivate the product instead."
+        "Cannot delete product referenced in transfer history."
       );
     }
 
@@ -192,7 +247,6 @@ export class ProductsService {
 
     const where: Prisma.ProductWhereInput = {
       ...NOT_DELETED,
-      isActive: true,
       ...(query
         ? {
             OR: [
@@ -245,15 +299,6 @@ export class ProductsService {
       });
       if (skuConflict) {
         throw new ConflictException(`Cannot restore: SKU "${product.sku}" is already in use`);
-      }
-    }
-
-    if (product.barcode) {
-      const barcodeConflict = await this.prisma.product.findFirst({
-        where: { barcode: product.barcode, NOT: { id }, ...NOT_DELETED }
-      });
-      if (barcodeConflict) {
-        throw new ConflictException(`Cannot restore: barcode "${product.barcode}" is already in use`);
       }
     }
 

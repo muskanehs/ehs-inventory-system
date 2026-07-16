@@ -61,21 +61,19 @@ export class ProductsController {
     const data = rows.map((r) => ({
       name: r.name,
       sku: r.sku,
-      barcode: r.barcode ?? "",
       category: r.category?.name ?? "",
       unit: r.unit,
-      minimumStockLevel: r.minimumStockLevel,
-      isActive: r.isActive ? "Yes" : "No"
+      minimumStockLevel: r.minimumStockLevel
     }));
 
     if (format === "csv") {
       res.setHeader("Content-Type", "text/csv");
       res.setHeader("Content-Disposition", "attachment; filename=products.csv");
       const csv = [
-        "name,sku,barcode,category,unit,minimumStockLevel,isActive",
+        "name,sku,category,unit,minimumStockLevel",
         ...data.map(
           (r) =>
-            `"${r.name}","${r.sku}","${r.barcode}","${r.category}","${r.unit}",${r.minimumStockLevel},"${r.isActive}"`
+            `"${r.name}","${r.sku}","${r.category}","${r.unit}",${r.minimumStockLevel}`
         )
       ].join("\n");
       return res.send(csv);
@@ -85,11 +83,9 @@ export class ProductsController {
       [
         { header: "Name", key: "name", width: 28 },
         { header: "SKU", key: "sku", width: 16 },
-        { header: "Barcode", key: "barcode", width: 18 },
         { header: "Category", key: "category", width: 20 },
         { header: "Unit", key: "unit", width: 10 },
-        { header: "Min Stock", key: "minimumStockLevel", width: 12 },
-        { header: "Active", key: "isActive", width: 10 }
+        { header: "Min Stock", key: "minimumStockLevel", width: 12 }
       ],
       data
     );

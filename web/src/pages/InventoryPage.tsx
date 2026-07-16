@@ -2,11 +2,16 @@ import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import {
   AlertTriangle,
+  Ellipsis,
   FileUp,
+  Loader2,
   Package,
   PackagePlus,
-  Plus
+  Pencil,
+  Plus,
+  Trash2
 } from "lucide-react";
+import { toast } from "sonner";
 import { StockExportDialog } from "@/components/inventory/StockExportDialog";
 import { StockImportDialog } from "@/components/inventory/StockImportDialog";
 import { EmptyState } from "@/components/EmptyState";
@@ -15,6 +20,19 @@ import { PageShell } from "@/components/PageShell";
 import { FilterBar } from "@/components/SearchInput";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle
+} from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger
+} from "@/components/ui/dropdown-menu";
 import {
   Select,
   SelectContent,
@@ -32,11 +50,12 @@ import {
 import { AddStockDialog } from "@/components/inventory/StockDialogs";
 import { ProductFormDialog } from "@/components/products/ProductFormDialog";
 import { useGroupedInventory, type StockListFilter } from "@/hooks/use-inventory";
+import { useDeleteProduct } from "@/hooks/use-products";
 import { useGlobalSearch } from "@/hooks/use-global-search";
 import { useLocations } from "@/hooks/use-locations";
 import { useLocationScope } from "@/hooks/use-location-scope";
-import { mapApiProductStockGroup } from "@/lib/inventory";
-import type { ProductStockGroup } from "@/lib/inventory";
+import { mapApiProductStockGroup, type ProductStockGroup } from "@/lib/inventory";
+import type { Product } from "@/lib/types";
 import { DataPanel } from "@/components/ui/surface";
 import { TablePagination } from "@/components/enterprise/TablePagination";
 import { cn, formatNumber } from "@/lib/utils";
@@ -59,7 +78,7 @@ function parseStockFilter(value: string | null): StockListFilter {
 
 type StockViewMode = "scoped" | "overall";
 
-type ProductStatus = "HEALTHY" | "LOW_STOCK" | "OUT_OF_STOCK" | "INACTIVE";
+type ProductStatus = "HEALTHY" | "LOW_STOCK" | "OUT_OF_STOCK";
 
 const STATUS_META: Record<
   ProductStatus,
@@ -67,12 +86,10 @@ const STATUS_META: Record<
 > = {
   HEALTHY: { label: "Healthy", badgeVariant: "success" },
   LOW_STOCK: { label: "Low stock", badgeVariant: "warning" },
-  OUT_OF_STOCK: { label: "Out of stock", badgeVariant: "destructive" },
-  INACTIVE: { label: "Inactive", badgeVariant: "secondary" }
+  OUT_OF_STOCK: { label: "Out of stock", badgeVariant: "destructive" }
 };
 
 function getProductStatus(group: ProductStockGroup): ProductStatus {
-  if (!group.product.isActive) return "INACTIVE";
   if (group.totalQuantity <= 0) return "OUT_OF_STOCK";
   if (group.isLowStock || group.totalQuantity <= group.product.minimumStockLevel) return "LOW_STOCK";
   return "HEALTHY";
@@ -92,7 +109,11 @@ export default function InventoryPage() {
   const [addStockOpen, setAddStockOpen] = useState(false);
   const [addProductOpen, setAddProductOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Product | null>(null);
   const [selectedProductId, setSelectedProductId] = useState<string | undefined>(undefined);
+
+  const deleteProduct = useDeleteProduct();
 
   const stockFilter = parseStockFilter(searchParams.get("filter"));
 
@@ -144,6 +165,29 @@ export default function InventoryPage() {
 
   const totalPages = groupedPage?.totalPages ?? 1;
   const totalItems = groupedPage?.total ?? 0;
+
+  const openEditProduct = (product: Product) => {
+    setEditingProduct(product);
+  };
+
+  const handleDeleteProduct = async () => {
+    if (!deleteTarget) return;
+    try {
+      await deleteProduct.mutateAsync(deleteTarget.id);
+      toast.success("Product deleted", {
+        description: `"${deleteTarget.name}" was removed. Add it again anytime to restore the catalog entry.`
+      });
+      setDeleteTarget(null);
+    } catch (error: unknown) {
+      const message =
+        error && typeof error === "object" && "response" in error
+          ? (error as { response?: { data?: { message?: string } } }).response?.data?.message
+          : undefined;
+      toast.error("Could not delete product", {
+        description: message ?? "This product may still have stock or transfer history."
+      });
+    }
+  };
 
   return (
     <PageShell>
@@ -318,6 +362,42 @@ export default function InventoryPage() {
                           {group.product.unit}
                         </span>
                       </p>
+                      {canManageProducts && (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 shrink-0"
+                              aria-label={`Actions for ${group.product.name}`}
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <Ellipsis className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                            <DropdownMenuItem
+                              onSelect={(e) => {
+                                e.preventDefault();
+                                openEditProduct(group.product);
+                              }}
+                            >
+                              <Pencil className="mr-2 h-4 w-4" />
+                              Edit name
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              className="text-destructive focus:text-destructive"
+                              onSelect={(e) => {
+                                e.preventDefault();
+                                setDeleteTarget(group.product);
+                              }}
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              Delete product
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      )}
                     </div>
                   </AccordionTrigger>
 
@@ -375,7 +455,42 @@ export default function InventoryPage() {
       />
 
       {canManageProducts && (
-        <ProductFormDialog open={addProductOpen} onOpenChange={setAddProductOpen} />
+        <>
+          <ProductFormDialog open={addProductOpen} onOpenChange={setAddProductOpen} />
+          <ProductFormDialog
+            open={Boolean(editingProduct)}
+            onOpenChange={(open) => {
+              if (!open) setEditingProduct(null);
+            }}
+            product={editingProduct}
+            renameOnly
+          />
+          <Dialog open={Boolean(deleteTarget)} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle>Delete product?</DialogTitle>
+                <DialogDescription>
+                  {deleteTarget
+                    ? `"${deleteTarget.name}" will be removed from the catalog. You can add it again later to restore it. Products with stock on hand or transfer history cannot be deleted.`
+                    : ""}
+                </DialogDescription>
+              </DialogHeader>
+              <div className="flex justify-end gap-2">
+                <Button type="button" variant="outline" onClick={() => setDeleteTarget(null)}>
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  variant="destructive"
+                  disabled={deleteProduct.isPending}
+                  onClick={() => void handleDeleteProduct()}
+                >
+                  {deleteProduct.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Delete"}
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+        </>
       )}
     </PageShell>
   );

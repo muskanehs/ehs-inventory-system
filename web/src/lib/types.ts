@@ -53,6 +53,7 @@ export type ProductPickerItem = {
 export type GodownSummary = Location & {
   productCount: number;
   totalUnits: number;
+  managerEmail: string | null;
 };
 
 export type GodownsSummaryResponse = {
@@ -80,11 +81,9 @@ export type Product = {
   id: string;
   name: string;
   sku: string | null;
-  barcode?: string | null;
   categoryId: string;
   unit: string;
   minimumStockLevel: number;
-  isActive: boolean;
   category?: Category;
 };
 
@@ -196,7 +195,6 @@ export type CreateProductInput = {
   sku?: string;
   categoryId: string;
   unit: string;
-  barcode?: string;
   minimumStockLevel?: number;
 };
 
@@ -205,9 +203,7 @@ export type UpdateProductInput = {
   sku?: string;
   categoryId?: string;
   unit?: string;
-  barcode?: string;
   minimumStockLevel?: number;
-  isActive?: boolean;
 };
 
 export type CreateMovementInput = {
