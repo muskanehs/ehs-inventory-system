@@ -39,6 +39,86 @@ export class ReportsService {
     });
   }
 
+  /**
+   * Stock export: every non-deleted product (and locations), including quantity 0
+   * when there is no inventory row. Used only by inventory/export.
+   */
+  async currentInventoryForExport(filters?: { categoryId?: string; locationId?: string }) {
+    const [products, locations, inventory] = await Promise.all([
+      this.prisma.product.findMany({
+        where: {
+          ...NOT_DELETED,
+          ...(filters?.categoryId ? { categoryId: filters.categoryId } : {})
+        },
+        include: { category: true },
+        orderBy: { name: "asc" }
+      }),
+      this.prisma.location.findMany({
+        where: {
+          ...NOT_DELETED,
+          ...(filters?.locationId ? { id: filters.locationId } : {})
+        },
+        orderBy: { name: "asc" }
+      }),
+      this.prisma.inventory.findMany({
+        where: {
+          product: {
+            ...NOT_DELETED,
+            ...(filters?.categoryId ? { categoryId: filters.categoryId } : {})
+          },
+          location: NOT_DELETED,
+          ...(filters?.locationId ? { locationId: filters.locationId } : {})
+        }
+      })
+    ]);
+
+    const qtyByKey = new Map(
+      inventory.map((row) => [`${row.productId}:${row.locationId}`, row.quantity])
+    );
+
+    type ExportRow = {
+      product: (typeof products)[number];
+      location: (typeof locations)[number] | null;
+      quantity: number;
+    };
+
+    const rows: ExportRow[] = [];
+
+    if (locations.length === 0) {
+      for (const product of products) {
+        rows.push({ product, location: null, quantity: 0 });
+      }
+      return rows;
+    }
+
+    for (const product of products) {
+      let hasAnyRow = false;
+      for (const location of locations) {
+        const key = `${product.id}:${location.id}`;
+        if (qtyByKey.has(key)) {
+          hasAnyRow = true;
+          rows.push({
+            product,
+            location,
+            quantity: qtyByKey.get(key) ?? 0
+          });
+        }
+      }
+
+      // Product never stocked at any selected location — still include with qty 0
+      if (!hasAnyRow) {
+        if (filters?.locationId) {
+          const location = locations[0] ?? null;
+          rows.push({ product, location, quantity: 0 });
+        } else {
+          rows.push({ product, location: null, quantity: 0 });
+        }
+      }
+    }
+
+    return rows;
+  }
+
   async velocityReport(days = VELOCITY_REPORT_DAYS): Promise<VelocityReport> {
     const report = await this.computeVelocity(days);
     return {

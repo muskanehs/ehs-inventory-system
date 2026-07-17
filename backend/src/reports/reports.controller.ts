@@ -65,7 +65,7 @@ export class ReportsController {
     @Query("groupBy") groupBy: "none" | "category" | "location" = "none"
   ) {
     const scopedLocationId = resolveInventoryScope(user, locationId);
-    const rows = await this.reportsService.currentInventory({
+    const rows = await this.reportsService.currentInventoryForExport({
       categoryId,
       locationId: scopedLocationId
     });
@@ -73,8 +73,8 @@ export class ReportsController {
       product: r.product.name,
       sku: r.product.sku,
       category: r.product.category?.name ?? "",
-      location: r.location.name,
-      locationType: r.location.type,
+      location: r.location?.name ?? "",
+      locationType: r.location?.type ?? "",
       quantity: r.quantity,
       unit: r.product.unit
     }));
