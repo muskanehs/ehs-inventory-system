@@ -1,17 +1,77 @@
 import { api } from "@/lib/api";
 
-export async function uploadImport(path: string, file: File) {
+export type ImportRowIssue = {
+  row: number;
+  message: string;
+};
+
+export type ImportSummary = {
+  created: number;
+  skipped: number;
+  errors: ImportRowIssue[];
+  skippedRows?: ImportRowIssue[];
+};
+
+export async function uploadImport(path: string, file: File): Promise<ImportSummary> {
   const formData = new FormData();
   formData.append("file", file);
   // Do not set Content-Type manually — the browser must add the multipart boundary.
   const response = await api.post(path, formData);
-  return response.data.data as {
-    created: number;
-    skipped: number;
-    errors: { row: number; message: string }[];
-  };
+  return response.data.data as ImportSummary;
 }
 
+function escapeCsvCell(value: string): string {
+  if (/[",\n\r]/.test(value)) {
+    return `"${value.replace(/"/g, '""')}"`;
+  }
+  return value;
+}
+
+/** Downloads a CSV listing every failed/skipped import row when issues exist. */
+export function downloadImportIssueReport(
+  kind: "products" | "stock",
+  summary: ImportSummary
+): boolean {
+  const issues = [
+    ...summary.errors.map((item) => ({
+      row: item.row,
+      status: "failed" as const,
+      message: item.message
+    })),
+    ...(summary.skippedRows ?? []).map((item) => ({
+      row: item.row,
+      status: "skipped" as const,
+      message: item.message
+    }))
+  ].sort((a, b) => a.row - b.row);
+
+  if (issues.length === 0) return false;
+
+  const lines = [
+    "row,status,issue",
+    ...issues.map(
+      (item) => `${item.row},${item.status},${escapeCsvCell(item.message)}`
+    ),
+    "",
+    `# Summary: ${summary.created} imported, ${summary.skipped} skipped, ${summary.errors.length} failed`
+  ];
+
+  const blob = new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8" });
+  const url = window.URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  const stamp = new Date()
+    .toISOString()
+    .slice(0, 19)
+    .replace(/[:T]/g, (ch) => (ch === "T" ? "-" : ch === ":" ? "" : ""));
+  link.href = url;
+  link.download = `${kind}-import-issues-${stamp}.csv`;
+  link.style.display = "none";
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  window.URL.revokeObjectURL(url);
+  return true;
+}
 
 type ExportParams = Record<string, string | undefined>;
 

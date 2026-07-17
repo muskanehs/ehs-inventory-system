@@ -10,7 +10,7 @@ import {
   DialogHeader,
   DialogTitle
 } from "@/components/ui/dialog";
-import { downloadExport, uploadImport } from "@/lib/export";
+import { downloadExport, downloadImportIssueReport, uploadImport } from "@/lib/export";
 import { useAuthStore } from "@/store/auth";
 
 type ImportKind = "products" | "stock" | null;
@@ -71,13 +71,16 @@ export function StockImportDialog({ open, onOpenChange }: StockImportDialogProps
       const path = kind === "products" ? "/import/products" : "/import/stock";
       const result = await uploadImport(path, file);
       const errorCount = result.errors.length;
+      const reportDownloaded = downloadImportIssueReport(kind, result);
+      const reportNote = reportDownloaded ? " Issue report downloaded." : "";
+
       if (result.created > 0 || result.skipped > 0) {
         toast.success("Import finished", {
-          description: `${result.created} imported${result.skipped ? `, ${result.skipped} skipped` : ""}${errorCount ? `, ${errorCount} failed` : ""}.`
+          description: `${result.created} imported${result.skipped ? `, ${result.skipped} skipped` : ""}${errorCount ? `, ${errorCount} failed` : ""}.${reportNote}`
         });
       } else if (errorCount > 0) {
         toast.error("Import failed", {
-          description: result.errors[0]?.message ?? "No rows were imported."
+          description: `${result.errors[0]?.message ?? "No rows were imported."}${reportNote}`
         });
       } else {
         toast.info("No rows to import");
@@ -238,8 +241,8 @@ export function StockImportDialog({ open, onOpenChange }: StockImportDialogProps
             />
             <p className="text-xs text-muted-foreground">
               {kind === "stock"
-                ? "Leave location and quantity blank to skip a product. Accepted: .xlsx, .csv (max 5 MB)."
-                : "Accepted formats: .xlsx, .csv (max 5 MB)"}
+                ? "Leave location and quantity blank to skip a product. Accepted: .xlsx, .csv (max 5 MB). Failed or skipped rows download as a CSV report automatically."
+                : "Accepted formats: .xlsx, .csv (max 5 MB). Failed or skipped rows download as a CSV report automatically."}
             </p>
           </div>
         )}

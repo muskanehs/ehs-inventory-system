@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ForbiddenException,
+  HttpException,
   Injectable
 } from "@nestjs/common";
 import { MovementType, Role } from "@prisma/client";
@@ -27,7 +28,27 @@ export type ImportSummary = {
   created: number;
   skipped: number;
   errors: ImportRowError[];
+  /** Rows intentionally skipped (e.g. duplicate SKU) with reasons for the issue report. */
+  skippedRows: ImportRowError[];
 };
+
+function importErrorMessage(error: unknown): string {
+  if (error instanceof HttpException) {
+    const response = error.getResponse();
+    if (typeof response === "string") return response;
+    if (response && typeof response === "object" && "message" in response) {
+      const message = (response as { message: string | string[] }).message;
+      return Array.isArray(message) ? message.join(", ") : String(message);
+    }
+    return error.message;
+  }
+  if (error instanceof Error) return error.message;
+  return String(error);
+}
+
+function emptyImportSummary(): ImportSummary {
+  return { created: 0, skipped: 0, errors: [], skippedRows: [] };
+}
 
 const PRODUCT_COLUMNS: ExcelColumn[] = [
   { header: "name", key: "name", width: 28 },
@@ -144,7 +165,7 @@ export class ImportService {
 
   async importProducts(file: UploadedImportFile): Promise<ImportSummary> {
     const rows = await this.parseUpload(file, PRODUCT_HEADERS);
-    const summary: ImportSummary = { created: 0, skipped: 0, errors: [] };
+    const summary = emptyImportSummary();
 
     for (let index = 0; index < rows.length; index += 1) {
       const rowNumber = index + 2;
@@ -176,6 +197,10 @@ export class ImportService {
           });
           if (existingSku) {
             summary.skipped += 1;
+            summary.skippedRows.push({
+              row: rowNumber,
+              message: `Product with SKU "${sku}" already exists`
+            });
             continue;
           }
         }
@@ -204,7 +229,7 @@ export class ImportService {
       } catch (error) {
         summary.errors.push({
           row: rowNumber,
-          message: error instanceof Error ? error.message : String(error)
+          message: importErrorMessage(error)
         });
       }
     }
@@ -214,7 +239,7 @@ export class ImportService {
 
   async importStock(file: UploadedImportFile, user: AuthUserPayload): Promise<ImportSummary> {
     const rows = await this.parseUpload(file, STOCK_HEADERS);
-    const summary: ImportSummary = { created: 0, skipped: 0, errors: [] };
+    const summary = emptyImportSummary();
 
     for (let index = 0; index < rows.length; index += 1) {
       const rowNumber = index + 2;
@@ -289,7 +314,7 @@ export class ImportService {
       } catch (error) {
         summary.errors.push({
           row: rowNumber,
-          message: error instanceof Error ? error.message : String(error)
+          message: importErrorMessage(error)
         });
       }
     }
