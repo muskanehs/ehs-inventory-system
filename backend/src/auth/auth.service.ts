@@ -491,9 +491,8 @@ export class AuthService {
     for (const stored of storedTokens) {
       if (await bcrypt.compare(refreshToken, stored.tokenHash)) {
         matched = true;
-        await this.prisma.refreshToken.update({
-          where: { id: stored.id },
-          data: { revokedAt: new Date() }
+        await this.prisma.refreshToken.delete({
+          where: { id: stored.id }
         });
         break;
       }
