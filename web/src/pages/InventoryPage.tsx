@@ -295,16 +295,16 @@ export default function InventoryPage() {
                   value={group.product.id}
                   className="group border-b transition-colors duration-200 hover:bg-hover last:border-b-0"
                 >
-                  <AccordionTrigger className="gap-2 px-3 py-2.5 text-left hover:no-underline sm:px-4 sm:py-3 [&>svg]:ml-0.5 [&>svg]:shrink-0">
-                    <div className="flex min-w-0 flex-1 items-center gap-3 pr-1">
+                  <AccordionTrigger className="gap-2 px-3 py-2.5 text-left hover:no-underline sm:px-4 sm:py-3 [&>svg]:hidden">
+                    <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
                       <div className="min-w-0 flex-1">
-                        <div className="flex min-w-0 items-center gap-1.5">
-                          <p className="truncate text-sm font-semibold leading-tight">
+                        <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 sm:flex-nowrap">
+                          <p className="min-w-0 max-w-full text-sm font-semibold leading-snug break-words sm:truncate">
                             {group.product.name}
                           </p>
                           <Badge
                             variant={STATUS_META[status].badgeVariant}
-                            className="h-5 shrink-0 px-1.5 py-0 text-[11px] font-medium"
+                            className="h-4 shrink-0 px-1 py-0 text-[10px] font-medium sm:h-5 sm:px-1.5 sm:text-[11px]"
                           >
                             {STATUS_META[status].label}
                           </Badge>
@@ -327,7 +327,7 @@ export default function InventoryPage() {
                             <Button
                               variant="ghost"
                               size="icon"
-                              className="h-8 w-8 shrink-0"
+                              className="h-8 w-8 shrink-0 self-center"
                               aria-label={`Actions for ${group.product.name}`}
                               onClick={(e) => e.stopPropagation()}
                             >
