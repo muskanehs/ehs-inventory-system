@@ -48,30 +48,30 @@ function GodownCard({
   const updatedLabel = godown.updatedAt ? formatRelativeDate(godown.updatedAt) : "-";
 
   return (
-    <div className="flex min-h-[96px] items-center gap-3 rounded-lg border border-border/70 bg-card px-3 py-3 shadow-sm transition-colors hover:bg-muted/20 sm:px-4">
+    <div className="flex min-h-[96px] min-w-0 items-center gap-3 rounded-lg border border-border/70 bg-card px-3 py-3 shadow-sm transition-colors hover:bg-muted/20 sm:px-4">
       <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
         <Building2 className="h-4 w-4" />
       </div>
-      <div className="grid min-w-0 flex-1 gap-2 sm:grid-cols-[minmax(0,1fr)_auto_auto_auto] sm:items-center sm:gap-4">
+      <div className="grid min-w-0 flex-1 gap-2 lg:grid-cols-[minmax(0,1fr)_auto_auto_auto] lg:items-center lg:gap-4">
         <div className="min-w-0">
           <p className="truncate text-sm font-semibold">{godown.name}</p>
           <p className="truncate text-xs text-muted-foreground">
             {godown.managerEmail ?? "No login assigned"}
           </p>
         </div>
-        <div className="hidden sm:block">
+        <div className="hidden lg:block">
           <p className="text-xs text-muted-foreground">Products</p>
           <p className="text-sm font-medium tabular-nums">{godown.productCount}</p>
         </div>
-        <div className="hidden sm:block">
+        <div className="hidden lg:block">
           <p className="text-xs text-muted-foreground">Stock Units</p>
           <p className="text-sm font-medium tabular-nums">{formatNumber(godown.totalUnits)}</p>
         </div>
-        <div className="hidden sm:block">
+        <div className="hidden lg:block">
           <p className="text-xs text-muted-foreground">Updated</p>
           <p className="text-sm">{updatedLabel}</p>
         </div>
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-muted-foreground sm:hidden">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-muted-foreground lg:hidden">
           <span>{godown.productCount} Products</span>
           <span aria-hidden="true">•</span>
           <span>{formatNumber(godown.totalUnits)} Units</span>
@@ -244,7 +244,7 @@ export default function GodownsPage() {
 
       <section>
         {isLoading ? (
-          <div className="grid gap-2 sm:grid-cols-2">
+          <div className="grid gap-2 lg:grid-cols-2">
             {Array.from({ length: 4 }).map((_, i) => (
               <Skeleton key={i} className="h-[96px] rounded-xl" />
             ))}
@@ -270,7 +270,7 @@ export default function GodownsPage() {
             onAction={!debouncedQuery ? openCreate : undefined}
           />
         ) : (
-          <div className="grid gap-2 sm:grid-cols-2">
+          <div className="grid gap-2 lg:grid-cols-2">
             {filtered.map((godown) => (
               <GodownCard
                 key={godown.id}
