@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import {
   AlertTriangle,
+  ChevronDown,
   Ellipsis,
   FileUp,
   Loader2,
@@ -49,7 +50,7 @@ import {
 import { AddStockDialog } from "@/components/inventory/StockDialogs";
 import { ProductFormDialog } from "@/components/products/ProductFormDialog";
 import { useGroupedInventory, type StockListFilter } from "@/hooks/use-inventory";
-import { useDeleteProduct } from "@/hooks/use-products";
+import { useCategories, useDeleteProduct } from "@/hooks/use-products";
 import { useGlobalSearch } from "@/hooks/use-global-search";
 import { useLocations } from "@/hooks/use-locations";
 import { useLocationScope } from "@/hooks/use-location-scope";
@@ -110,8 +111,10 @@ export default function InventoryPage() {
   const [selectedProductId, setSelectedProductId] = useState<string | undefined>(undefined);
 
   const deleteProduct = useDeleteProduct();
+  const { data: categories = [] } = useCategories();
 
   const stockFilter = parseStockFilter(searchParams.get("filter"));
+  const categoryId = searchParams.get("category") || undefined;
 
   // Godown managers are locked to their assigned location (no overall-stock toggle).
   const listLocationId = isGodownScoped && scopedLocationId ? scopedLocationId : undefined;
@@ -121,7 +124,8 @@ export default function InventoryPage() {
     limit: PAGE_SIZE,
     search: debouncedQuery,
     locationId: listLocationId,
-    filter: stockFilter
+    filter: stockFilter,
+    categoryId
   });
   const { data: locations = [] } = useLocations();
 
@@ -132,7 +136,7 @@ export default function InventoryPage() {
 
   useEffect(() => {
     setPage(1);
-  }, [debouncedQuery, stockFilter]);
+  }, [debouncedQuery, stockFilter, categoryId]);
 
   const setStockFilter = (next: StockListFilter) => {
     setSearchParams(
@@ -140,6 +144,19 @@ export default function InventoryPage() {
         const params = new URLSearchParams(prev);
         if (next === "all") params.delete("filter");
         else params.set("filter", next);
+        return params;
+      },
+      { replace: true }
+    );
+    setPage(1);
+  };
+
+  const setCategoryFilter = (next: string) => {
+    setSearchParams(
+      (prev) => {
+        const params = new URLSearchParams(prev);
+        if (next === "all") params.delete("category");
+        else params.set("category", next);
         return params;
       },
       { replace: true }
@@ -196,21 +213,58 @@ export default function InventoryPage() {
         }
         actions={
           <>
-            {canManageProducts && (
-              <Button variant="outline" onClick={() => setAddProductOpen(true)}>
-                <Plus className="h-4 w-4" />
-                Add Product
+            {canManageProducts ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button>
+                    <Plus className="h-4 w-4" />
+                    Add
+                    <ChevronDown className="h-4 w-4 opacity-70" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => setAddProductOpen(true)}>
+                    <Package className="mr-2 h-4 w-4" />
+                    Add product
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => {
+                      setSelectedProductId(undefined);
+                      setAddStockOpen(true);
+                    }}
+                  >
+                    <PackagePlus className="mr-2 h-4 w-4" />
+                    Add stock
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <Button
+                onClick={() => {
+                  setSelectedProductId(undefined);
+                  setAddStockOpen(true);
+                }}
+              >
+                <PackagePlus className="h-4 w-4" />
+                Add stock
               </Button>
             )}
-            <Button
-              onClick={() => {
-                setSelectedProductId(undefined);
-                setAddStockOpen(true);
-              }}
+            <Select
+              value={categoryId ?? "all"}
+              onValueChange={setCategoryFilter}
             >
-              <PackagePlus className="h-4 w-4" />
-              Add Stock
-            </Button>
+              <SelectTrigger className="h-9 w-[160px] bg-surface sm:w-[180px]" aria-label="Category filter">
+                <SelectValue placeholder="All categories" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All categories</SelectItem>
+                {categories.map((category) => (
+                  <SelectItem key={category.id} value={category.id}>
+                    {category.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <Select value={stockFilter} onValueChange={(v) => setStockFilter(parseStockFilter(v))}>
               <SelectTrigger className="h-9 w-[160px] bg-surface sm:w-[180px]" aria-label="Stock filter">
                 <SelectValue placeholder="All stock" />
@@ -240,6 +294,9 @@ export default function InventoryPage() {
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-semibold tracking-tight text-foreground">
             {STOCK_FILTERS.find((f) => f.value === stockFilter)?.label ?? "Inventory List"}
+            {categoryId
+              ? ` · ${categories.find((c) => c.id === categoryId)?.name ?? "Category"}`
+              : ""}
           </h2>
         </div>
 

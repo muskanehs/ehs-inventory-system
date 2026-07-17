@@ -47,12 +47,14 @@ export class InventoryService {
       search?: string;
       locationId?: string;
       filter?: string;
+      categoryId?: string;
     }
   ): Promise<PaginatedResult<ProductStockGroup> | ProductStockGroup[]> {
     const scopeLocationId = resolveInventoryScope(user, options.locationId);
     const { page, limit, skip, isPaginated } = parsePagination(options.page, options.limit);
     const search = options.search?.trim();
     const stockFilter = parseStockFilter(options.filter);
+    const categoryId = options.categoryId?.trim() || undefined;
 
     const searchWhere: Prisma.ProductWhereInput = search
       ? {
@@ -65,7 +67,8 @@ export class InventoryService {
 
     const productWhere: Prisma.ProductWhereInput = {
       ...NOT_DELETED,
-      ...searchWhere
+      ...searchWhere,
+      ...(categoryId ? { categoryId } : {})
     };
 
     if (stockFilter === "fast") {
@@ -73,7 +76,10 @@ export class InventoryService {
     } else if (stockFilter === "slow") {
       productWhere.isSlowMoving = true;
     } else if (stockFilter === "low") {
-      const lowIds = await this.findLowStockProductIds(scopeLocationId, searchWhere);
+      const lowIds = await this.findLowStockProductIds(scopeLocationId, {
+        ...searchWhere,
+        ...(categoryId ? { categoryId } : {})
+      });
       if (lowIds.length === 0) {
         if (!isPaginated) return [];
         return toPaginatedResult([], 0, page, limit);

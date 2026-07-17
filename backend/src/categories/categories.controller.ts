@@ -34,7 +34,7 @@ export class CategoriesController {
   ) {}
 
   @Get()
-  @Roles(Role.ADMIN, Role.STORE_MANAGER)
+  @Roles(Role.ADMIN, Role.STORE_MANAGER, Role.GODOWN_MANAGER)
   @Header("Cache-Control", "private, no-cache")
   async findAll(
     @CurrentUser() user: AuthUserPayload,

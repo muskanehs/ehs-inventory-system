@@ -26,14 +26,16 @@ export class InventoryController {
     @Query("limit") limit?: string,
     @Query("search") search?: string,
     @Query("locationId") locationId?: string,
-    @Query("filter") filter?: string
+    @Query("filter") filter?: string,
+    @Query("categoryId") categoryId?: string
   ) {
     return this.inventoryService.findGrouped(user, {
       page,
       limit,
       search,
       locationId,
-      filter
+      filter,
+      categoryId
     });
   }
 }

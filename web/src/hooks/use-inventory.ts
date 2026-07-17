@@ -29,6 +29,7 @@ export function useGroupedInventory(params: {
   search: string;
   locationId?: string;
   filter?: StockListFilter;
+  categoryId?: string;
 }) {
   return useQuery({
     queryKey: ["inventory", "grouped", params],
@@ -41,7 +42,8 @@ export function useGroupedInventory(params: {
             limit: params.limit,
             search: params.search || undefined,
             locationId: params.locationId,
-            filter: params.filter && params.filter !== "all" ? params.filter : undefined
+            filter: params.filter && params.filter !== "all" ? params.filter : undefined,
+            categoryId: params.categoryId || undefined
           }
         }
       );
