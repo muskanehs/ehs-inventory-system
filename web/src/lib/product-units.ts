@@ -18,7 +18,9 @@ export const PRODUCT_UNITS = [
   "Meter",
   "Coil",
   "Set",
-  "Roll"
+  "Roll",
+  "Drum",
+  "Barrel"
 ] as const;
 
 export type ProductUnit = (typeof PRODUCT_UNITS)[number];

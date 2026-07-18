@@ -13,7 +13,7 @@ class InventoryMobileApp extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(appRouterProvider);
     return MaterialApp.router(
-      title: "Economic Hardware Store",
+      title: "EHS",
       theme: ThemeData(
         useMaterial3: true,
         colorSchemeSeed: const Color(0xFF2563EB),

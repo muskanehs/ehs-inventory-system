@@ -1,5 +1,5 @@
-import { IsIn, IsInt, IsOptional, IsString, Min, MinLength, ValidateIf } from "class-validator";
-import { DEFAULT_PRODUCT_UNIT, PRODUCT_UNITS } from "../../common/constants/product-units";
+import { IsInt, IsOptional, IsString, MaxLength, Min, MinLength, ValidateIf } from "class-validator";
+import { DEFAULT_PRODUCT_UNIT } from "../../common/constants/product-units";
 
 export class CreateProductDto {
   @IsString()
@@ -16,9 +16,8 @@ export class CreateProductDto {
   categoryId!: string;
 
   @IsString()
-  @IsIn([...PRODUCT_UNITS], {
-    message: `unit must be one of: ${PRODUCT_UNITS.join(", ")}`
-  })
+  @MinLength(1)
+  @MaxLength(30)
   unit: string = DEFAULT_PRODUCT_UNIT;
 
   @IsOptional()

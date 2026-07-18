@@ -1,4 +1,4 @@
-import { ConflictException, Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
 import { CreateProductDto } from "./dto/create-product.dto";
@@ -6,12 +6,30 @@ import { UpdateProductDto } from "./dto/update-product.dto";
 import { toPaginatedResult, type PaginatedResult } from "../common/types/paginated-result";
 import { parsePagination } from "../common/utils/pagination";
 import { NOT_DELETED, restoreData, softDeleteData, withNotDeleted } from "../common/utils/soft-delete";
+import { PRODUCT_UNITS } from "../common/constants/product-units";
 
 @Injectable()
 export class ProductsService {
   constructor(private readonly prisma: PrismaService) {}
 
   private productInclude = { category: true } as const;
+
+  async findUnits(): Promise<string[]> {
+    const saved = await this.prisma.product.findMany({
+      distinct: ["unit"],
+      select: { unit: true }
+    });
+    const units = [...PRODUCT_UNITS, ...saved.map((product) => product.unit.trim())];
+    const seen = new Set<string>();
+
+    return units.filter((unit) => {
+      if (!unit) return false;
+      const normalized = unit.toLocaleLowerCase();
+      if (seen.has(normalized)) return false;
+      seen.add(normalized);
+      return true;
+    });
+  }
 
   async findAll(
     search?: string,
@@ -70,6 +88,14 @@ export class ProductsService {
     return trimmed ? trimmed : null;
   }
 
+  private normalizeUnit(unit: string) {
+    const trimmed = unit.trim();
+    if (!trimmed) {
+      throw new BadRequestException("Unit is required");
+    }
+    return trimmed;
+  }
+
   async create(dto: CreateProductDto) {
     const name = dto.name.trim();
     const sku = this.normalizeSku(dto.sku);
@@ -107,7 +133,7 @@ export class ProductsService {
         name,
         sku,
         categoryId: dto.categoryId,
-        unit: dto.unit.trim(),
+        unit: this.normalizeUnit(dto.unit),
         minimumStockLevel: dto.minimumStockLevel ?? 0
       },
       include: this.productInclude
@@ -161,7 +187,7 @@ export class ProductsService {
         name,
         sku,
         categoryId: dto.categoryId,
-        unit: dto.unit.trim(),
+        unit: this.normalizeUnit(dto.unit),
         minimumStockLevel: dto.minimumStockLevel ?? 0
       },
       include: this.productInclude
@@ -206,7 +232,7 @@ export class ProductsService {
         ...(dto.name !== undefined && { name: nextName }),
         ...(nextSku !== undefined && { sku: nextSku }),
         ...(dto.categoryId !== undefined && { categoryId: dto.categoryId }),
-        ...(dto.unit !== undefined && { unit: dto.unit.trim() }),
+        ...(dto.unit !== undefined && { unit: this.normalizeUnit(dto.unit) }),
         ...(dto.minimumStockLevel !== undefined && { minimumStockLevel: dto.minimumStockLevel })
       },
       include: this.productInclude

@@ -92,7 +92,7 @@ export class DispatchSlipService {
         50,
         doc.y
       );
-      doc.text("Economic Hardware Store", { align: "center" });
+      doc.text("EHS", { align: "center" });
 
       doc.end();
     });

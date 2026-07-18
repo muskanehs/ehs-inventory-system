@@ -22,17 +22,65 @@ import {
 import {
   useCategories,
   useCreateProduct,
+  useProductUnits,
   useUpdateProduct
 } from "@/hooks/use-products";
 import type { Product } from "@/lib/types";
 import { DEFAULT_PRODUCT_UNIT, PRODUCT_UNITS } from "@/lib/product-units";
 import { cn } from "@/lib/utils";
 
+const CUSTOM_UNIT_VALUE = "__custom_unit__";
+
+function UnitSelect({
+  value,
+  options,
+  onChange,
+  ariaLabel
+}: {
+  value: string;
+  options: string[];
+  onChange: (value: string) => void;
+  ariaLabel: string;
+}) {
+  const isCustom = !options.includes(value);
+
+  return (
+    <div className="space-y-2">
+      <Select
+        value={isCustom ? CUSTOM_UNIT_VALUE : value}
+        onValueChange={(next) => onChange(next === CUSTOM_UNIT_VALUE ? "" : next)}
+      >
+        <SelectTrigger className="h-9" aria-label={ariaLabel}>
+          <SelectValue placeholder="Select unit" />
+        </SelectTrigger>
+        <SelectContent>
+          {options.map((option) => (
+            <SelectItem key={option} value={option}>
+              {option}
+            </SelectItem>
+          ))}
+          <SelectItem value={CUSTOM_UNIT_VALUE}>Custom unit…</SelectItem>
+        </SelectContent>
+      </Select>
+      {isCustom ? (
+        <Input
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          placeholder="Enter custom unit"
+          maxLength={30}
+          required
+          aria-label={`${ariaLabel} custom value`}
+          className="h-9"
+        />
+      ) : null}
+    </div>
+  );
+}
+
 type ProductFormDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   product?: Product | null;
-  renameOnly?: boolean;
 };
 
 type DraftProduct = {
@@ -58,11 +106,11 @@ function emptyDraft(defaultCategoryId = ""): DraftProduct {
 export function ProductFormDialog({
   open,
   onOpenChange,
-  product,
-  renameOnly = false
+  product
 }: ProductFormDialogProps) {
   const isEditing = Boolean(product);
   const { data: categories = [] } = useCategories();
+  const { data: savedUnits = [] } = useProductUnits();
   const createProduct = useCreateProduct();
   const updateProduct = useUpdateProduct();
 
@@ -75,12 +123,10 @@ export function ProductFormDialog({
   const [submitting, setSubmitting] = useState(false);
 
   const unitOptions = useMemo(() => {
-    const options: string[] = [...PRODUCT_UNITS];
-    if (product?.unit && !options.includes(product.unit)) {
-      options.unshift(product.unit);
-    }
-    return options;
-  }, [product?.unit]);
+    const options = [...PRODUCT_UNITS, ...savedUnits];
+    if (product?.unit) options.push(product.unit);
+    return Array.from(new Set(options.filter(Boolean)));
+  }, [product?.unit, savedUnits]);
 
   useEffect(() => {
     if (!open) return;
@@ -123,6 +169,12 @@ export function ProductFormDialog({
       return;
     }
 
+    const missingUnit = filled.find((row) => !row.unit.trim());
+    if (missingUnit) {
+      toast.error("Select or enter a unit for each product");
+      return;
+    }
+
     const names = filled.map((row) => row.name.trim().toLowerCase());
     if (new Set(names).size !== names.length) {
       toast.error("Duplicate product names in the list");
@@ -144,7 +196,7 @@ export function ProductFormDialog({
           name: row.name.trim(),
           ...(trimmedSku ? { sku: trimmedSku } : {}),
           categoryId: row.categoryId,
-          unit: row.unit,
+          unit: row.unit.trim(),
           minimumStockLevel: Number(row.minimumStockLevel) || 0
         });
         created += 1;
@@ -167,26 +219,28 @@ export function ProductFormDialog({
   const onSubmitEdit = async (e: FormEvent) => {
     e.preventDefault();
 
-    if (!renameOnly && !categoryId) {
+    if (!categoryId) {
       toast.error("Select a category");
+      return;
+    }
+    if (!unit.trim()) {
+      toast.error("Select or enter a unit");
       return;
     }
 
     try {
       const trimmedSku = sku.trim();
-      const payload = renameOnly
-        ? { name: name.trim() }
-        : {
-            name: name.trim(),
-            ...(trimmedSku ? { sku: trimmedSku } : { sku: "" }),
-            categoryId,
-            unit,
-            minimumStockLevel: Number(minimumStockLevel) || 0
-          };
+      const payload = {
+        name: name.trim(),
+        ...(trimmedSku ? { sku: trimmedSku } : { sku: "" }),
+        categoryId,
+        unit: unit.trim(),
+        minimumStockLevel: Number(minimumStockLevel) || 0
+      };
 
       if (product) {
         await updateProduct.mutateAsync({ id: product.id, ...payload });
-        toast.success(renameOnly ? "Product renamed" : "Product updated");
+        toast.success("Product updated");
       }
 
       onOpenChange(false);
@@ -210,12 +264,8 @@ export function ProductFormDialog({
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>{renameOnly ? "Rename Product" : "Edit Product"}</DialogTitle>
-            <DialogDescription>
-              {renameOnly
-                ? "Update the product name across inventory and transfers."
-                : "Update product details in the catalog."}
-            </DialogDescription>
+            <DialogTitle>Edit Product</DialogTitle>
+            <DialogDescription>Update product details in the catalog.</DialogDescription>
           </DialogHeader>
           <form onSubmit={onSubmitEdit} className="space-y-4">
             <div className="space-y-2">
@@ -225,8 +275,6 @@ export function ProductFormDialog({
               </Label>
               <Input id="pname" value={name} onChange={(e) => setName(e.target.value)} required />
             </div>
-            {!renameOnly && (
-              <>
             <div className="space-y-2">
               <Label htmlFor="sku">SKU</Label>
               <Input
@@ -259,21 +307,15 @@ export function ProductFormDialog({
                 Quantity type
                 <RequiredMark />
               </Label>
-              <Select value={unit} onValueChange={setUnit}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select unit" />
-                </SelectTrigger>
-                <SelectContent>
-                  {unitOptions.map((option) => (
-                    <SelectItem key={option} value={option}>
-                      {option}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <UnitSelect
+                value={unit}
+                options={unitOptions}
+                onChange={setUnit}
+                ariaLabel="Product unit"
+              />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="min">Min stock level</Label>
+              <Label htmlFor="min">Minimum stock level</Label>
               <Input
                 id="min"
                 type="number"
@@ -282,11 +324,9 @@ export function ProductFormDialog({
                 onChange={(e) => setMinimumStockLevel(e.target.value)}
               />
             </div>
-              </>
-            )}
             <Button type="submit" className="w-full" disabled={isPending}>
               {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-              {renameOnly ? "Save name" : "Save Changes"}
+              Save Changes
             </Button>
           </form>
         </DialogContent>
@@ -306,7 +346,7 @@ export function ProductFormDialog({
 
         <form onSubmit={onSubmitCreate} className="flex min-h-0 flex-1 flex-col">
           <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-4 sm:px-6">
-            <div className="hidden gap-2 px-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground sm:grid sm:grid-cols-[minmax(0,1.4fr)_minmax(0,0.9fr)_minmax(0,1fr)_88px_72px_36px]">
+            <div className="hidden gap-2 px-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground sm:grid sm:grid-cols-[minmax(0,1.4fr)_minmax(0,0.9fr)_minmax(0,1fr)_120px_72px_36px]">
               <span>
                 Name
                 <RequiredMark />
@@ -329,7 +369,7 @@ export function ProductFormDialog({
                 <div
                   key={row.key}
                   className={cn(
-                    "grid gap-2 rounded-lg border border-border/60 bg-muted/10 p-2 sm:grid-cols-[minmax(0,1.4fr)_minmax(0,0.9fr)_minmax(0,1fr)_88px_72px_36px] sm:items-center sm:border-0 sm:bg-transparent sm:p-0"
+                    "grid gap-2 rounded-lg border border-border/60 bg-muted/10 p-2 sm:grid-cols-[minmax(0,1.4fr)_minmax(0,0.9fr)_minmax(0,1fr)_120px_72px_36px] sm:items-center sm:border-0 sm:bg-transparent sm:p-0"
                   )}
                 >
                   <div className="space-y-1 sm:space-y-0">
@@ -381,18 +421,12 @@ export function ProductFormDialog({
                       Unit
                       <RequiredMark />
                     </Label>
-                    <Select value={row.unit} onValueChange={(value) => updateRow(index, { unit: value })}>
-                      <SelectTrigger className="h-9" aria-label={`Unit ${index + 1}`}>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {PRODUCT_UNITS.map((option) => (
-                          <SelectItem key={option} value={option}>
-                            {option}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <UnitSelect
+                      value={row.unit}
+                      options={unitOptions}
+                      onChange={(value) => updateRow(index, { unit: value })}
+                      ariaLabel={`Unit ${index + 1}`}
+                    />
                   </div>
                   <div className="space-y-1 sm:space-y-0">
                     <Label className="sm:hidden">Min stock</Label>

@@ -52,7 +52,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 children: [
                   Icon(Icons.warehouse_outlined, size: 56, color: Theme.of(context).colorScheme.primary),
                   const SizedBox(height: 16),
-                  Text("Economic Hardware Store", style: Theme.of(context).textTheme.headlineSmall),
+                  Text("EHS", style: Theme.of(context).textTheme.headlineSmall),
                   const SizedBox(height: 8),
                   Text("Sign in to manage stock", style: Theme.of(context).textTheme.bodyMedium),
                   const SizedBox(height: 32),

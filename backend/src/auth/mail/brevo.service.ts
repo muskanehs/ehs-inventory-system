@@ -151,9 +151,9 @@ export class BrevoService implements OnModuleInit {
         subject: `Password reset OTP (${accountEmail})`,
         textContent,
         htmlContent,
-        sender: { email: senderEmail, name: "Economic Hardware Store" },
+        sender: { email: senderEmail, name: "EHS" },
         to,
-        replyTo: { email: senderEmail, name: "Economic Hardware Store" }
+        replyTo: { email: senderEmail, name: "EHS" }
       });
       const messageId =
         result && typeof result === "object" && "messageId" in result

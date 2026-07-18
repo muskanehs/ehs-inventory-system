@@ -34,6 +34,12 @@ export class ProductsController {
     return this.productsService.findAll(search, page, limit, allowDeleted);
   }
 
+  @Get("units")
+  @Roles(Role.ADMIN, Role.STORE_MANAGER, Role.GODOWN_MANAGER)
+  findUnits() {
+    return this.productsService.findUnits();
+  }
+
   @Get("picker")
   @Roles(Role.ADMIN, Role.STORE_MANAGER, Role.GODOWN_MANAGER)
   picker(

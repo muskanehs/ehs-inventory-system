@@ -1,4 +1,4 @@
-# Economic Hardware Store — User Guide
+# EHS — User Guide
 
 How to use the inventory system day to day. No technical knowledge needed.
 
@@ -287,4 +287,4 @@ If nothing helps, contact your system administrator with:
 
 ---
 
-*Economic Hardware Store inventory system — end-user guide.*
+*EHS inventory system — end-user guide.*

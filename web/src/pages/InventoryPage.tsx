@@ -479,7 +479,6 @@ export default function InventoryPage() {
               if (!open) setEditingProduct(null);
             }}
             product={editingProduct}
-            renameOnly
           />
           <Dialog open={Boolean(deleteTarget)} onOpenChange={(open) => !open && setDeleteTarget(null)}>
             <DialogContent className="sm:max-w-md">

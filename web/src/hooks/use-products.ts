@@ -54,6 +54,16 @@ export function useCategories() {
   });
 }
 
+export function useProductUnits() {
+  return useQuery({
+    queryKey: ["products", "units"],
+    queryFn: async () => {
+      const response = await api.get<ApiResponse<string[]>>("/products/units");
+      return response.data.data;
+    }
+  });
+}
+
 export function useCategoryStats() {
   return useQuery({
     queryKey: ["categories", "stats"],
@@ -73,6 +83,7 @@ export function useCreateProduct() {
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["products"] });
+      void queryClient.invalidateQueries({ queryKey: ["products", "units"] });
       void queryClient.invalidateQueries({ queryKey: ["inventory"] });
       void queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       void queryClient.invalidateQueries({ queryKey: ["categories"] });
@@ -89,6 +100,7 @@ export function useUpdateProduct() {
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["products"] });
+      void queryClient.invalidateQueries({ queryKey: ["products", "units"] });
       void queryClient.invalidateQueries({ queryKey: ["inventory"] });
       void queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       void queryClient.invalidateQueries({ queryKey: ["categories"] });

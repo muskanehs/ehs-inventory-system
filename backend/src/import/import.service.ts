@@ -7,8 +7,7 @@ import {
 import { MovementType, Role } from "@prisma/client";
 import type { AuthUserPayload } from "../common/types/auth-user";
 import {
-  DEFAULT_PRODUCT_UNIT,
-  PRODUCT_UNITS
+  DEFAULT_PRODUCT_UNIT
 } from "../common/constants/product-units";
 import {
   ExcelColumn,
@@ -206,8 +205,8 @@ export class ImportService {
         }
 
         const unit = row.unit?.trim() || DEFAULT_PRODUCT_UNIT;
-        if (!PRODUCT_UNITS.includes(unit as (typeof PRODUCT_UNITS)[number])) {
-          throw new Error(`unit must be one of: ${PRODUCT_UNITS.join(", ")}`);
+        if (unit.length > 30) {
+          throw new Error("unit must be 30 characters or fewer");
         }
 
         const minimumStockLevel = row.minimumstocklevel

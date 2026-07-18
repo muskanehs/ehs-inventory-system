@@ -5,7 +5,7 @@ import type { AuthUserPayload } from "../common/types/auth-user";
 import { TransfersService } from "./transfers.service";
 
 const STORE = {
-  name: "Economic Hardware Store",
+  name: "EHS",
   address: "Sevoke Road, Siliguri, 734001",
   contact: "2430240",
   gstin: "19ACRPA8005A1ZY"

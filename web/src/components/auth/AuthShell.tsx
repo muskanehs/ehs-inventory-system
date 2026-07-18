@@ -48,7 +48,7 @@ export function AuthHeader({ className }: { className?: string }) {
     <header className={cn("flex flex-col items-center text-center", className)}>
       <AuthLogo size="lg" />
       <h1 className="mt-4 text-base font-semibold tracking-tight text-foreground">
-        Economic Hardware Store
+        EHS
       </h1>
       <p className="mt-1 text-sm text-muted-foreground">Inventory platform</p>
     </header>

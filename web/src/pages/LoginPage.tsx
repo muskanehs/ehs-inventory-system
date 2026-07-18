@@ -74,7 +74,7 @@ function AppHeader({ className }: { className?: string }) {
     <header className={cn("flex flex-col items-center text-center", className)}>
       <AppLogo size="lg" />
       <h1 className="mt-4 text-base font-semibold tracking-tight text-foreground">
-        Economic Hardware Store
+        EHS
       </h1>
       <p className="mt-1 text-sm text-muted-foreground">Inventory platform</p>
     </header>
@@ -348,7 +348,7 @@ function DesktopBrandPanel() {
         <div className="flex items-center gap-3">
           <AppLogo size="md" />
           <div>
-            <p className="text-sm font-semibold text-foreground">Economic Hardware Store</p>
+            <p className="text-sm font-semibold text-foreground">EHS</p>
             <p className="text-xs text-muted-foreground">Inventory platform</p>
           </div>
         </div>
@@ -422,7 +422,7 @@ function DesktopLoginLayout() {
             <div className="mx-auto w-fit">
               <AppLogo size="md" />
             </div>
-            <p className="mt-3 text-sm font-semibold text-foreground">Economic Hardware Store</p>
+            <p className="mt-3 text-sm font-semibold text-foreground">EHS</p>
             <p className="mt-0.5 text-xs text-muted-foreground">Inventory platform</p>
           </div>
           <LoginCard />
