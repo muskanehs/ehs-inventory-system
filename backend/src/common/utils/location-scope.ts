@@ -28,8 +28,10 @@ export function resolveLocationScope(
 }
 
 /**
- * Inventory scope — godown managers are always limited to their assignment.
- * Admins/store managers may pass a locationId or omit for all locations.
+ * Inventory list scope.
+ * - Godown managers default to their assigned location.
+ * - Passing `locationId=all` lets them view stock across shop + all godowns (read-only list).
+ * - Admins/store managers may pass a locationId or omit/"all" for every location.
  */
 export function resolveInventoryScope(
   user: AuthUserPayload,
@@ -37,6 +39,7 @@ export function resolveInventoryScope(
 ): string | undefined {
   if (user.role === Role.GODOWN_MANAGER) {
     assertGodownAssignment(user);
+    if (requestedLocationId === "all") return undefined;
     return user.assignedLocationId!;
   }
   if (requestedLocationId === "all") return undefined;

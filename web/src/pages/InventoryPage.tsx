@@ -56,9 +56,9 @@ import { useLocations } from "@/hooks/use-locations";
 import { useLocationScope } from "@/hooks/use-location-scope";
 import { mapApiProductStockGroup, type ProductStockGroup } from "@/lib/inventory";
 import type { Product } from "@/lib/types";
-import { DataPanel } from "@/components/ui/surface";
+import { DataPanel, FilterBar } from "@/components/ui/surface";
 import { TablePagination } from "@/components/enterprise/TablePagination";
-import { formatNumber } from "@/lib/utils";
+import { cn, formatNumber } from "@/lib/utils";
 import { useAuthStore } from "@/store/auth";
 import { useSearchStore } from "@/store/search";
 
@@ -75,6 +75,8 @@ function parseStockFilter(value: string | null): StockListFilter {
   if (value === "low" || value === "fast" || value === "slow") return value;
   return "all";
 }
+
+type StockViewMode = "scoped" | "overall";
 
 type ProductStatus = "HEALTHY" | "LOW_STOCK" | "OUT_OF_STOCK";
 
@@ -103,6 +105,7 @@ export default function InventoryPage() {
   const setQuery = useSearchStore((s) => s.setQuery);
   const { debouncedQuery } = useGlobalSearch();
   const [page, setPage] = useState(1);
+  const [stockView, setStockView] = useState<StockViewMode>("scoped");
   const [addStockOpen, setAddStockOpen] = useState(false);
   const [addProductOpen, setAddProductOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
@@ -116,8 +119,12 @@ export default function InventoryPage() {
   const stockFilter = parseStockFilter(searchParams.get("filter"));
   const categoryId = searchParams.get("category") || undefined;
 
-  // Godown managers are locked to their assigned location (no overall-stock toggle).
-  const listLocationId = isGodownScoped && scopedLocationId ? scopedLocationId : undefined;
+  // Godown managers default to their godown; "all" unlocks shop + every godown.
+  const listLocationId = isGodownScoped
+    ? stockView === "overall"
+      ? "all"
+      : scopedLocationId ?? undefined
+    : undefined;
 
   const { data: groupedPage, isLoading, isError, refetch } = useGroupedInventory({
     page,
@@ -136,7 +143,7 @@ export default function InventoryPage() {
 
   useEffect(() => {
     setPage(1);
-  }, [debouncedQuery, stockFilter, categoryId]);
+  }, [debouncedQuery, stockFilter, categoryId, stockView]);
 
   const setStockFilter = (next: StockListFilter) => {
     setSearchParams(
@@ -208,7 +215,9 @@ export default function InventoryPage() {
         title="Inventory"
         description={
           isGodownScoped && assignedLocationName
-            ? `Stock at ${assignedLocationName}.`
+            ? stockView === "overall"
+              ? "Stock across the shop and all godowns."
+              : `Stock at ${assignedLocationName}.`
             : "Manage stock across all stores and godowns."
         }
         actions={
@@ -290,6 +299,37 @@ export default function InventoryPage() {
 
       <StockImportDialog open={importOpen} onOpenChange={setImportOpen} />
 
+      {isGodownScoped && (
+        <FilterBar>
+          <div className="flex w-full max-w-md shrink-0 rounded-md border border-border/70 bg-muted/30 p-0.5">
+            <Button
+              type="button"
+              variant="ghost"
+              className={cn(
+                "h-8 flex-1 rounded-sm px-3 text-xs font-medium sm:h-9 sm:text-sm",
+                stockView === "scoped" &&
+                  "bg-primary text-primary-foreground shadow-sm hover:bg-primary hover:text-primary-foreground"
+              )}
+              onClick={() => setStockView("scoped")}
+            >
+              {assignedLocationName ?? "My Godown"}
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              className={cn(
+                "h-8 flex-1 rounded-sm px-3 text-xs font-medium sm:h-9 sm:text-sm",
+                stockView === "overall" &&
+                  "bg-primary text-primary-foreground shadow-sm hover:bg-primary hover:text-primary-foreground"
+              )}
+              onClick={() => setStockView("overall")}
+            >
+              Entire stock
+            </Button>
+          </div>
+        </FilterBar>
+      )}
+
       <section className="space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-semibold tracking-tight text-foreground">
@@ -342,7 +382,7 @@ export default function InventoryPage() {
               {paginated.map(({ group, status, distribution }) => {
                 const categoryName = group.product.category?.name ?? "Uncategorized";
                 const displayDistribution =
-                  isGodownScoped && listLocationId
+                  isGodownScoped && stockView === "scoped" && listLocationId && listLocationId !== "all"
                     ? distribution.filter(({ location }) => location.id === listLocationId)
                     : distribution;
 

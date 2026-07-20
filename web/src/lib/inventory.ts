@@ -69,13 +69,29 @@ export function mapApiProductStockGroup(
   locations: Location[]
 ): ProductStockGroup {
   const quantityByLocation = new Map(group.items.map((item) => [item.locationId, item.quantity]));
-  const storeLocations = locations
+
+  // Merge catalog locations with any locations embedded on inventory rows so
+  // godown-scoped location lists still render other sites in "entire stock" view.
+  const locationById = new Map<string, Location>();
+  for (const location of locations) {
+    locationById.set(location.id, location);
+  }
+  for (const item of group.items) {
+    if (item.location && !locationById.has(item.location.id)) {
+      locationById.set(item.location.id, item.location);
+    }
+  }
+  const allLocations = Array.from(locationById.values()).sort((a, b) =>
+    a.name.localeCompare(b.name)
+  );
+
+  const storeLocations = allLocations
     .filter((l) => l.type === "STORE")
     .map((location) => ({
       location,
       quantity: quantityByLocation.get(location.id) ?? 0
     }));
-  const godownLocations = locations
+  const godownLocations = allLocations
     .filter((l) => l.type === "GODOWN")
     .map((location) => ({
       location,
