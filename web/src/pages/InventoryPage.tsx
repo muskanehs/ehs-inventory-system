@@ -56,9 +56,9 @@ import { useLocations } from "@/hooks/use-locations";
 import { useLocationScope } from "@/hooks/use-location-scope";
 import { mapApiProductStockGroup, type ProductStockGroup } from "@/lib/inventory";
 import type { Product } from "@/lib/types";
-import { DataPanel, FilterBar } from "@/components/ui/surface";
+import { DataPanel } from "@/components/ui/surface";
 import { TablePagination } from "@/components/enterprise/TablePagination";
-import { cn, formatNumber } from "@/lib/utils";
+import { formatNumber } from "@/lib/utils";
 import { useAuthStore } from "@/store/auth";
 import { useSearchStore } from "@/store/search";
 
@@ -286,6 +286,25 @@ export default function InventoryPage() {
                 ))}
               </SelectContent>
             </Select>
+            {isGodownScoped ? (
+              <Select
+                value={stockView}
+                onValueChange={(v) => setStockView(v === "overall" ? "overall" : "scoped")}
+              >
+                <SelectTrigger
+                  className="h-9 w-[160px] bg-surface sm:w-[200px]"
+                  aria-label="Stock location view"
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="scoped">
+                    {assignedLocationName ?? "My Godown"}
+                  </SelectItem>
+                  <SelectItem value="overall">Entire stock</SelectItem>
+                </SelectContent>
+              </Select>
+            ) : null}
             <StockExportDialog label="Export" variant="outline" />
             {canImport ? (
               <Button variant="outline" onClick={() => setImportOpen(true)}>
@@ -298,37 +317,6 @@ export default function InventoryPage() {
       />
 
       <StockImportDialog open={importOpen} onOpenChange={setImportOpen} />
-
-      {isGodownScoped && (
-        <FilterBar>
-          <div className="flex w-full max-w-md shrink-0 rounded-md border border-border/70 bg-muted/30 p-0.5">
-            <Button
-              type="button"
-              variant="ghost"
-              className={cn(
-                "h-8 flex-1 rounded-sm px-3 text-xs font-medium sm:h-9 sm:text-sm",
-                stockView === "scoped" &&
-                  "bg-primary text-primary-foreground shadow-sm hover:bg-primary hover:text-primary-foreground"
-              )}
-              onClick={() => setStockView("scoped")}
-            >
-              {assignedLocationName ?? "My Godown"}
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              className={cn(
-                "h-8 flex-1 rounded-sm px-3 text-xs font-medium sm:h-9 sm:text-sm",
-                stockView === "overall" &&
-                  "bg-primary text-primary-foreground shadow-sm hover:bg-primary hover:text-primary-foreground"
-              )}
-              onClick={() => setStockView("overall")}
-            >
-              Entire stock
-            </Button>
-          </div>
-        </FilterBar>
-      )}
 
       <section className="space-y-4">
         <div className="flex items-center justify-between">
