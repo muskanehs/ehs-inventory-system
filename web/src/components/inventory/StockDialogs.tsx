@@ -33,7 +33,8 @@ type AddStockDialogProps = {
 };
 
 export function AddStockDialog({ open, onOpenChange, initialProductId }: AddStockDialogProps) {
-  const { data: products = [] } = useProductPicker({ enabled: open });
+  // "all" skips location stock filter so zero-qty products remain selectable (esp. godown managers).
+  const { data: products = [] } = useProductPicker({ enabled: open, locationId: "all" });
   const { data: locations = [] } = useLocations({ enabled: open });
   const { isGodownScoped, scopedLocationId, assignedLocationName } = useLocationScope();
   const createMovement = useCreateMovement();

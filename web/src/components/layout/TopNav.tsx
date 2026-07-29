@@ -38,6 +38,7 @@ export function TopNav() {
   const setSearch = useSearchStore((s) => s.setQuery);
   const role = useAuthStore((s) => s.role);
   const userName = useAuthStore((s) => s.userName);
+  const assignedLocationName = useAuthStore((s) => s.assignedLocationName);
   const canSwitchUsers = useAuthStore((s) => s.canSwitchUsers);
   const clear = useAuthStore((s) => s.clear);
   const toggleTheme = useThemeStore((s) => s.toggleTheme);
@@ -46,6 +47,12 @@ export function TopNav() {
   const setMobileOpen = useSidebarStore((s) => s.setMobileOpen);
   const collapsed = useSidebarStore((s) => s.collapsed);
   const toggleCollapsed = useSidebarStore((s) => s.toggleCollapsed);
+
+  // Godown managers should see the godown name, not "… Manager".
+  const displayName =
+    role === "GODOWN_MANAGER" && assignedLocationName
+      ? assignedLocationName
+      : (userName ?? "User");
 
   const handleLogout = () => {
     void api
@@ -67,7 +74,7 @@ export function TopNav() {
     setMobileOpen(true);
   };
 
-  const initials = (userName ?? "U")
+  const initials = displayName
     .split(" ")
     .map((n) => n[0])
     .join("")
@@ -130,14 +137,14 @@ export function TopNav() {
                   </AvatarFallback>
                 </Avatar>
                 <span className="hidden max-w-[140px] truncate text-sm font-medium text-foreground md:inline-block">
-                  {userName ?? "User"}
+                  {displayName}
                 </span>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56">
               <DropdownMenuLabel>
                 <div className="flex flex-col space-y-0.5">
-                  <p className="text-sm font-medium">{userName ?? "User"}</p>
+                  <p className="text-sm font-medium">{displayName}</p>
                   <p className="text-xs text-muted-foreground">{formatRole(role)}</p>
                 </div>
               </DropdownMenuLabel>
