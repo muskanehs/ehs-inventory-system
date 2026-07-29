@@ -71,11 +71,6 @@ export default function DashboardPage() {
     <PageShell>
       <PageHeader
         title="Dashboard"
-        description={
-          isGodownScoped && assignedLocationName
-            ? `Overview for ${assignedLocationName}: stock, transfers, and activity at your godown.`
-            : "Overview of your inventory health and operations at a glance."
-        }
         breadcrumbs={[{ label: "Home", href: "/" }, { label: "Dashboard" }]}
         actions={<ExportButton path="/movements/export" filename="movements.xlsx" />}
       />

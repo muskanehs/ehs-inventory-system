@@ -12,7 +12,6 @@ import { DataPanel } from "@/components/ui/surface";
 import { StatusBadge } from "@/components/StatusBadge";
 import { useGlobalSearch } from "@/hooks/use-global-search";
 import { useLocations } from "@/hooks/use-locations";
-import { useLocationScope } from "@/hooks/use-location-scope";
 import { useMovements } from "@/hooks/use-movements";
 import { useTransfers } from "@/hooks/use-transfers";
 import { cn, formatDate, formatNumber } from "@/lib/utils";
@@ -33,7 +32,6 @@ export default function ActivityPage() {
   const [tab, setTab] = useState<ActivityTab>("stock");
   const [page, setPage] = useState(1);
   const { debouncedQuery } = useGlobalSearch();
-  const { isGodownScoped, assignedLocationName } = useLocationScope();
   const { data: locations = [] } = useLocations();
 
   const { data: movementPage, isLoading: movementsLoading } = useMovements(
@@ -81,11 +79,6 @@ export default function ActivityPage() {
     <PageShell>
       <PageHeader
         title="Activity"
-        description={
-          isGodownScoped && assignedLocationName
-            ? `Stock entries and transfers for ${assignedLocationName}.`
-            : "Dates and details for stock entries and transfers."
-        }
         actions={
           tab === "stock" ? (
             <ExportButton path="/movements/export" filename="movements.xlsx" label="Export" />

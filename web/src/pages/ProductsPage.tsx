@@ -174,7 +174,6 @@ export default function ProductsPage() {
     <PageShell>
       <PageHeader
         title="Products"
-        description="Manage your product catalog - add, edit, and remove products."
         actions={
           <>
             <ExportButton

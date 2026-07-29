@@ -105,7 +105,7 @@ export default function ReportsPage() {
   const { data: inventory = [], isLoading } = useInventory();
   const { data: products = [] } = useProducts();
   const { data: velocity, isLoading: velocityLoading } = useVelocityReport(VELOCITY_REPORT_DAYS);
-  const { isGodownScoped, scopedLocationId, assignedLocationName } = useLocationScope();
+  const { isGodownScoped, scopedLocationId } = useLocationScope();
 
   const scopedInventory = filterInventoryByLocation(inventory, scopedLocationId);
 
@@ -140,11 +140,6 @@ export default function ReportsPage() {
     <PageShell>
       <PageHeader
         title="Reports"
-        description={
-          isGodownScoped && assignedLocationName
-            ? `Inventory summaries for ${assignedLocationName}.`
-            : "Inventory summaries, velocity analysis, and exports."
-        }
         breadcrumbs={[{ label: "Home", href: "/" }, { label: "Reports" }]}
         actions={<StockExportDialog label="Export Stock" />}
       />

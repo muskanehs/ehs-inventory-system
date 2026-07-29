@@ -222,7 +222,6 @@ export default function GodownsPage() {
     <PageShell>
       <PageHeader
         title="Godowns"
-        description="Manage warehouse locations for inventory storage."
         actions={
           <>
             <ExportButton

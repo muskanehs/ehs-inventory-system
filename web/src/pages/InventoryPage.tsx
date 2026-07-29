@@ -213,13 +213,6 @@ export default function InventoryPage() {
     <PageShell>
       <PageHeader
         title="Inventory"
-        description={
-          isGodownScoped && assignedLocationName
-            ? stockView === "overall"
-              ? "Stock across the shop and all godowns."
-              : `Stock at ${assignedLocationName}.`
-            : "Manage stock across all stores and godowns."
-        }
         actions={
           <>
             {canManageProducts ? (

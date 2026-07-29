@@ -273,7 +273,6 @@ export default function CategoriesPage() {
     <PageShell>
       <PageHeader
         title="Categories"
-        description="Organize products into categories for easier inventory management."
         actions={
           <>
             <ExportButton

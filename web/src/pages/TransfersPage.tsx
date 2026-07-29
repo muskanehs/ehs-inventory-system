@@ -27,7 +27,6 @@ import {
   SelectValue
 } from "@/components/ui/select";
 import { useLocations } from "@/hooks/use-locations";
-import { useLocationScope } from "@/hooks/use-location-scope";
 import { useTransferStats, useTransfers, useTransferActions } from "@/hooks/use-transfers";
 import { useGlobalSearch } from "@/hooks/use-global-search";
 import { useAuthStore } from "@/store/auth";
@@ -68,7 +67,6 @@ export default function TransfersPage() {
   const { data: locations = [] } = useLocations();
   const { approve, approveAll, reject } = useTransferActions();
   const role = useAuthStore((s) => s.role);
-  const { isGodownScoped, assignedLocationName } = useLocationScope();
   const isAdmin = role === "ADMIN";
   const pendingCount = transferStats?.pending ?? 0;
 
@@ -149,11 +147,6 @@ export default function TransfersPage() {
     <PageShell>
       <PageHeader
         title="Transfers"
-        description={
-          isGodownScoped && assignedLocationName
-            ? `Transfers involving ${assignedLocationName}.`
-            : "Request, approve, and track stock movement between locations."
-        }
         actions={
           <>
             {isAdmin && pendingCount > 0 && (
