@@ -215,6 +215,13 @@ export type CreateMovementInput = {
   remarks?: string;
 };
 
+export type CreateBatchMovementInput = {
+  toLocationId: string;
+  movementType: MovementType;
+  remarks?: string;
+  items: { productId: string; quantity: number }[];
+};
+
 export type CreateTransferInput = {
   transferType?: TransferType;
   fromLocationId: string;

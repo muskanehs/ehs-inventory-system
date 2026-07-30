@@ -3,6 +3,7 @@ import { api } from "@/lib/api";
 import type {
   ApiProductStockGroup,
   ApiResponse,
+  CreateBatchMovementInput,
   CreateMovementInput,
   InventoryItem,
   PaginatedResult,
@@ -69,6 +70,22 @@ export function useCreateMovement() {
   return useMutation({
     mutationFn: async (input: CreateMovementInput) => {
       const response = await api.post<ApiResponse<StockMovement>>("/movements", input);
+      return response.data.data;
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["inventory"] });
+      void queryClient.invalidateQueries({ queryKey: ["movements"] });
+      void queryClient.invalidateQueries({ queryKey: ["products"] });
+      void queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+    }
+  });
+}
+
+export function useCreateBatchMovements() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: CreateBatchMovementInput) => {
+      const response = await api.post<ApiResponse<StockMovement[]>>("/movements/batch", input);
       return response.data.data;
     },
     onSuccess: () => {

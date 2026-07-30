@@ -10,6 +10,7 @@ import type { AuthUserPayload } from "../common/types/auth-user";
 import { ExcelExportService } from "../common/export/excel-export.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { CreateMovementDto } from "./dto/create-movement.dto";
+import { CreateBatchMovementDto } from "./dto/create-batch-movement.dto";
 import { MovementsService } from "./movements.service";
 
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -96,6 +97,15 @@ export class MovementsController {
   @Roles(Role.ADMIN, Role.STORE_MANAGER, Role.GODOWN_MANAGER)
   create(@Body() dto: CreateMovementDto, @CurrentUser() user: AuthUserPayload) {
     return this.movementsService.createMovement(
+      { ...dto, performedBy: user.sub },
+      user
+    );
+  }
+
+  @Post("batch")
+  @Roles(Role.ADMIN, Role.STORE_MANAGER, Role.GODOWN_MANAGER)
+  createBatch(@Body() dto: CreateBatchMovementDto, @CurrentUser() user: AuthUserPayload) {
+    return this.movementsService.createBatchMovements(
       { ...dto, performedBy: user.sub },
       user
     );

@@ -159,11 +159,75 @@ export class MovementsService {
           remarks: input.remarks,
           performedBy: input.performedBy
         },
-        include: {
-          product: { include: { category: true } },
-          user: { select: { id: true, name: true, role: true } }
-        }
+        include: movementInclude
       });
+    });
+  }
+
+  async createBatchMovements(
+    input: {
+      toLocationId: string;
+      movementType: MovementType;
+      remarks?: string;
+      items: { productId: string; quantity: number }[];
+      performedBy: string;
+    },
+    actor: AuthUserPayload
+  ) {
+    if (input.items.length === 0) {
+      throw new BadRequestException("Add at least one product");
+    }
+
+    this.assertCanCreateMovement(actor, {
+      productId: input.items[0].productId,
+      toLocationId: input.toLocationId,
+      quantity: input.items[0].quantity,
+      movementType: input.movementType
+    });
+
+    const productIds = input.items.map((item) => item.productId);
+    if (new Set(productIds).size !== productIds.length) {
+      throw new BadRequestException("Each product can only appear once");
+    }
+
+    const toLocation = await this.prisma.location.findFirst({
+      where: { id: input.toLocationId, ...NOT_DELETED }
+    });
+    if (!toLocation) {
+      throw new BadRequestException("Destination location not found");
+    }
+
+    const products = await this.prisma.product.findMany({
+      where: { id: { in: productIds }, ...NOT_DELETED },
+      select: { id: true }
+    });
+    if (products.length !== productIds.length) {
+      throw new BadRequestException("One or more products were not found");
+    }
+
+    return this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+      const created = [];
+      for (const item of input.items) {
+        await this.inventoryService.applyDeltaTx(
+          tx,
+          item.productId,
+          input.toLocationId,
+          item.quantity
+        );
+        const movement = await tx.stockMovement.create({
+          data: {
+            productId: item.productId,
+            toLocationId: input.toLocationId,
+            quantity: item.quantity,
+            movementType: input.movementType,
+            remarks: input.remarks,
+            performedBy: input.performedBy
+          },
+          include: movementInclude
+        });
+        created.push(movement);
+      }
+      return created;
     });
   }
 }

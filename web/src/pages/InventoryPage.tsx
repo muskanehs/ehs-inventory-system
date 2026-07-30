@@ -373,6 +373,7 @@ export default function InventoryPage() {
                   value={group.product.id}
                   className="group border-b transition-colors duration-200 hover:bg-hover last:border-b-0"
                 >
+                  <div className="flex items-center gap-1 pr-2 sm:pr-3">
                   <AccordionTrigger className="gap-2 px-3 py-2.5 text-left hover:no-underline sm:px-4 sm:py-3 [&>svg]:hidden">
                     <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
                       <div className="min-w-0 flex-1">
@@ -399,44 +400,44 @@ export default function InventoryPage() {
                           {group.product.unit}
                         </span>
                       </p>
-                      {canManageProducts && (
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8 shrink-0 self-center"
-                              aria-label={`Actions for ${group.product.name}`}
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              <Ellipsis className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
-                            <DropdownMenuItem
-                              onSelect={(e) => {
-                                e.preventDefault();
-                                openEditProduct(group.product);
-                              }}
-                            >
-                              <Pencil className="mr-2 h-4 w-4" />
-                              Edit name
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              className="text-destructive focus:text-destructive"
-                              onSelect={(e) => {
-                                e.preventDefault();
-                                setDeleteTarget(group.product);
-                              }}
-                            >
-                              <Trash2 className="mr-2 h-4 w-4" />
-                              Delete product
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      )}
                     </div>
                   </AccordionTrigger>
+                  {canManageProducts && (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 shrink-0"
+                          aria-label={`Actions for ${group.product.name}`}
+                        >
+                          <Ellipsis className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem
+                          onSelect={(e) => {
+                            e.preventDefault();
+                            openEditProduct(group.product);
+                          }}
+                        >
+                          <Pencil className="mr-2 h-4 w-4" />
+                          Edit name
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          className="text-destructive focus:text-destructive"
+                          onSelect={(e) => {
+                            e.preventDefault();
+                            setDeleteTarget(group.product);
+                          }}
+                        >
+                          <Trash2 className="mr-2 h-4 w-4" />
+                          Delete product
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  )}
+                  </div>
 
                   <AccordionContent className="pb-3">
                     <div className="space-y-2 px-3 sm:px-4">
