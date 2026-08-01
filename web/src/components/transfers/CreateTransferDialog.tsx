@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useMemo, useState, type ReactNode } from "react";
+import { FormEvent, useEffect, useState, type ReactNode } from "react";
 import {
   ClipboardList,
   Loader2,
@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { RequiredMark } from "@/components/RequiredMark";
+import { ProductCombobox } from "@/components/ProductCombobox";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -35,18 +36,17 @@ import { useProductPicker } from "@/hooks/use-products";
 import { useLocations } from "@/hooks/use-locations";
 import { useLocationScope } from "@/hooks/use-location-scope";
 import { useCreateTransfer } from "@/hooks/use-transfers";
-import { downloadDispatchSlip, downloadTransferSlip } from "@/lib/export";
 import type { TransferType } from "@/lib/types";
 import { cn, formatNumber } from "@/lib/utils";
 
-type LineRow = { productId: string; quantity: string };
+type LineRow = { productId: string; quantity: string; availableQty: number; unit: string };
 
 type CreateTransferDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 };
 
-const emptyLine = (): LineRow => ({ productId: "", quantity: "1" });
+const emptyLine = (): LineRow => ({ productId: "", quantity: "1", availableQty: 0, unit: "" });
 
 const fieldInputClass = "h-11 rounded-lg text-sm";
 const selectTriggerClass = "h-11 rounded-lg text-sm";
@@ -103,20 +103,12 @@ export function CreateTransferDialog({ open, onOpenChange }: CreateTransferDialo
   const [remarks, setRemarks] = useState("");
   const [lines, setLines] = useState<LineRow[]>([emptyLine()]);
 
-  const { data: pickerProducts = [] } = useProductPicker({
+  const { data: pickerProducts = [], isFetching: loadingProducts } = useProductPicker({
     locationId: fromLocationId || undefined,
     enabled: open && !!fromLocationId
   });
 
-  const stockAtSource = useMemo(() => {
-    const map = new Map<string, number>();
-    for (const product of pickerProducts) {
-      map.set(product.id, product.availableQty ?? 0);
-    }
-    return map;
-  }, [pickerProducts]);
-
-  const availableProducts = pickerProducts;
+  const hasStockedProducts = pickerProducts.length > 0;
 
   useEffect(() => {
     if (open && isGodownScoped && scopedLocationId && !fromLocationId) {
@@ -137,17 +129,8 @@ export function CreateTransferDialog({ open, onOpenChange }: CreateTransferDialo
   }, [open, transferType, isGodownScoped, scopedLocationId, locations, fromLocationId]);
 
   useEffect(() => {
-    setLines((prev) =>
-      prev.map((line) => {
-        if (!line.productId) return line;
-        const available = stockAtSource.get(line.productId) ?? 0;
-        if (available <= 0) return { ...line, productId: "" };
-        const qty = Number(line.quantity) || 1;
-        if (qty > available) return { ...line, quantity: String(available) };
-        return line;
-      })
-    );
-  }, [fromLocationId, stockAtSource]);
+    setLines([emptyLine()]);
+  }, [fromLocationId]);
 
   const resetForm = () => {
     setTransferType("INTERNAL");
@@ -170,7 +153,7 @@ export function CreateTransferDialog({ open, onOpenChange }: CreateTransferDialo
 
   const adjustQuantity = (index: number, delta: number) => {
     const line = lines[index];
-    const available = line?.productId ? stockAtSource.get(line.productId) ?? 0 : Infinity;
+    const available = line?.availableQty || Infinity;
     const current = Number(line?.quantity) || 1;
     const next = Math.max(1, Math.min(available || 1, current + delta));
     updateLine(index, { quantity: String(next) });
@@ -219,20 +202,21 @@ export function CreateTransferDialog({ open, onOpenChange }: CreateTransferDialo
     }
 
     const overStock = items.find((item) => {
-      const available = stockAtSource.get(item.productId) ?? 0;
+      const line = lines.find((l) => l.productId === item.productId);
+      const available = line?.availableQty ?? 0;
       return item.quantity > available;
     });
     if (overStock) {
-      const product = pickerProducts.find((p) => p.id === overStock.productId);
-      const available = stockAtSource.get(overStock.productId) ?? 0;
+      const line = lines.find((l) => l.productId === overStock.productId);
+      const available = line?.availableQty ?? 0;
       toast.error("Insufficient stock", {
-        description: `${product?.name ?? "Product"} has only ${formatNumber(available)} available at source.`
+        description: `Only ${formatNumber(available)} ${line?.unit || "units"} available for the selected product.`
       });
       return;
     }
 
     try {
-      const created = await createTransfer.mutateAsync({
+      await createTransfer.mutateAsync({
         transferType,
         fromLocationId,
         toLocationId: transferType === "INTERNAL" ? toLocationId : undefined,
@@ -246,26 +230,7 @@ export function CreateTransferDialog({ open, onOpenChange }: CreateTransferDialo
         items
       });
 
-      if (transferType === "CUSTOMER") {
-        try {
-          await downloadDispatchSlip(created.id);
-          toast.success("Transfer requested", { description: "Dispatch slip downloaded." });
-        } catch {
-          toast.success("Transfer requested", {
-            description: "Dispatch slip could not be downloaded. Use the transfer card to retry."
-          });
-        }
-      } else {
-        try {
-          await downloadTransferSlip(created.id);
-          toast.success("Transfer requested", { description: "Transfer slip downloaded." });
-        } catch {
-          toast.success("Transfer requested", {
-            description: "Transfer slip could not be downloaded. Use the transfer card to retry."
-          });
-        }
-      }
-
+      toast.success("Transfer requested");
       onOpenChange(false);
       resetForm();
     } catch (error: unknown) {
@@ -473,23 +438,17 @@ export function CreateTransferDialog({ open, onOpenChange }: CreateTransferDialo
                 <p className="rounded-lg border bg-muted/20 px-3 py-2 text-sm text-muted-foreground">
                   Select a source location to see products with available stock.
                 </p>
-              ) : availableProducts.length === 0 ? (
+              ) : !loadingProducts && !hasStockedProducts ? (
                 <p className="rounded-lg border bg-muted/20 px-3 py-2 text-sm text-muted-foreground">
                   No products with available stock at the selected location.
                 </p>
               ) : (
               <div className="space-y-2">
                 {lines.map((line, index) => {
-                  const available = line.productId ? stockAtSource.get(line.productId) ?? 0 : 0;
+                  const available = line.availableQty;
                   const selectedIds = lines
                     .map((row, rowIndex) => (rowIndex === index ? null : row.productId))
                     .filter(Boolean) as string[];
-                  const productOptions = availableProducts.filter(
-                    (product) =>
-                      product.id === line.productId || !selectedIds.includes(product.id)
-                  );
-
-                  const selectedProduct = pickerProducts.find((p) => p.id === line.productId);
 
                   return (
                   <div key={index} className="animate-in fade-in-0 slide-in-from-top-1 space-y-1.5 duration-200">
@@ -501,21 +460,20 @@ export function CreateTransferDialog({ open, onOpenChange }: CreateTransferDialo
                     )}
                     <div className="flex items-center gap-1.5 sm:gap-2">
                       <div className="min-w-0 flex-1 basis-0">
-                        <Select
+                        <ProductCombobox
                           value={line.productId}
-                          onValueChange={(value) => updateLine(index, { productId: value, quantity: "1" })}
-                        >
-                          <SelectTrigger className={selectTriggerClass} aria-label={`Product ${index + 1}`}>
-                            <SelectValue placeholder="Select product" />
-                          </SelectTrigger>
-                          <SelectContent position="popper" sideOffset={4}>
-                            {productOptions.map((product) => (
-                              <SelectItem key={product.id} value={product.id}>
-                                {product.name}{product.sku ? ` (${product.sku})` : ""}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                          locationId={fromLocationId}
+                          excludeIds={selectedIds}
+                          aria-label={`Product ${index + 1}`}
+                          onValueChange={(productId, product) =>
+                            updateLine(index, {
+                              productId,
+                              quantity: "1",
+                              availableQty: product?.availableQty ?? 0,
+                              unit: product?.unit ?? ""
+                            })
+                          }
+                        />
                       </div>
 
                       <div className="flex shrink-0 items-center gap-0.5 sm:gap-1">
@@ -585,7 +543,7 @@ export function CreateTransferDialog({ open, onOpenChange }: CreateTransferDialo
                     </div>
                     {line.productId && (
                       <p className="text-xs text-muted-foreground">
-                        {formatNumber(available)} {selectedProduct?.unit ?? "units"} available at source
+                        {formatNumber(available)} {line.unit || "units"} available at source
                       </p>
                     )}
                   </div>
@@ -597,7 +555,6 @@ export function CreateTransferDialog({ open, onOpenChange }: CreateTransferDialo
                   variant="outline"
                   className="h-11 w-full rounded-lg border-dashed"
                   onClick={() => setLines((prev) => [...prev, emptyLine()])}
-                  disabled={lines.length >= availableProducts.length}
                 >
                   <Plus className="mr-2 h-4 w-4" />
                   Add Product

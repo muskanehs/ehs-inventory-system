@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { RequiredMark } from "@/components/RequiredMark";
+import { SearchableSelect } from "@/components/SearchableSelect";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -127,6 +128,11 @@ export function ProductFormDialog({
     if (product?.unit) options.push(product.unit);
     return Array.from(new Set(options.filter(Boolean)));
   }, [product?.unit, savedUnits]);
+
+  const categoryOptions = useMemo(
+    () => categories.map((c) => ({ value: c.id, label: c.name })),
+    [categories]
+  );
 
   useEffect(() => {
     if (!open) return;
@@ -289,18 +295,15 @@ export function ProductFormDialog({
                 Category
                 <RequiredMark />
               </Label>
-              <Select value={categoryId} onValueChange={setCategoryId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select category" />
-                </SelectTrigger>
-                <SelectContent>
-                  {categories.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>
-                      {c.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <SearchableSelect
+                value={categoryId}
+                onValueChange={setCategoryId}
+                options={categoryOptions}
+                placeholder="Select category"
+                searchPlaceholder="Type to search categories…"
+                emptyText="No categories match your search."
+                aria-label="Category"
+              />
             </div>
             <div className="space-y-2">
               <Label>
@@ -400,21 +403,15 @@ export function ProductFormDialog({
                       Category
                       <RequiredMark />
                     </Label>
-                    <Select
+                    <SearchableSelect
                       value={row.categoryId}
                       onValueChange={(value) => updateRow(index, { categoryId: value })}
-                    >
-                      <SelectTrigger className="h-9" aria-label={`Category ${index + 1}`}>
-                        <SelectValue placeholder="Category" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {categories.map((c) => (
-                          <SelectItem key={c.id} value={c.id}>
-                            {c.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                      options={categoryOptions}
+                      placeholder="Category"
+                      searchPlaceholder="Type to search…"
+                      emptyText="No categories match."
+                      aria-label={`Category ${index + 1}`}
+                    />
                   </div>
                   <div className="space-y-1 sm:space-y-0">
                     <Label className="sm:hidden">

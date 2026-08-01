@@ -12,6 +12,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { RequiredMark } from "@/components/RequiredMark";
 import { Label } from "@/components/ui/label";
+import { ProductCombobox } from "@/components/ProductCombobox";
 import {
   Select,
   SelectContent,
@@ -21,7 +22,6 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useCreateBatchMovements } from "@/hooks/use-inventory";
-import { useProductPicker } from "@/hooks/use-products";
 import { useLocations } from "@/hooks/use-locations";
 import { useLocationScope } from "@/hooks/use-location-scope";
 import type { MovementType } from "@/lib/types";
@@ -41,8 +41,6 @@ const fieldInputClass = "h-11 rounded-lg text-sm";
 const selectTriggerClass = "h-11 rounded-lg text-sm";
 
 export function AddStockDialog({ open, onOpenChange, initialProductId }: AddStockDialogProps) {
-  // "all" skips location stock filter so zero-qty products remain selectable (esp. godown managers).
-  const { data: products = [] } = useProductPicker({ enabled: open, locationId: "all" });
   const { data: locations = [] } = useLocations({ enabled: open });
   const { isGodownScoped, scopedLocationId, assignedLocationName } = useLocationScope();
   const createBatch = useCreateBatchMovements();
@@ -205,9 +203,6 @@ export function AddStockDialog({ open, onOpenChange, initialProductId }: AddStoc
                 const selectedIds = lines
                   .map((row, rowIndex) => (rowIndex === index ? null : row.productId))
                   .filter(Boolean) as string[];
-                const productOptions = products.filter(
-                  (product) => product.id === line.productId || !selectedIds.includes(product.id)
-                );
 
                 return (
                   <div key={index} className="space-y-1.5">
@@ -219,27 +214,15 @@ export function AddStockDialog({ open, onOpenChange, initialProductId }: AddStoc
                     )}
                     <div className="flex items-center gap-1.5 sm:gap-2">
                       <div className="min-w-0 flex-1 basis-0">
-                        <Select
+                        <ProductCombobox
                           value={line.productId}
-                          onValueChange={(value) =>
-                            updateLine(index, { productId: value, quantity: "1" })
+                          locationId="all"
+                          excludeIds={selectedIds}
+                          aria-label={`Product ${index + 1}`}
+                          onValueChange={(productId) =>
+                            updateLine(index, { productId, quantity: line.quantity || "1" })
                           }
-                        >
-                          <SelectTrigger
-                            className={selectTriggerClass}
-                            aria-label={`Product ${index + 1}`}
-                          >
-                            <SelectValue placeholder="Select product" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {productOptions.map((p) => (
-                              <SelectItem key={p.id} value={p.id}>
-                                {p.name}
-                                {p.sku ? ` (${p.sku})` : ""}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        />
                       </div>
 
                       <div className="flex shrink-0 items-center gap-0.5 sm:gap-1">
@@ -305,7 +288,6 @@ export function AddStockDialog({ open, onOpenChange, initialProductId }: AddStoc
                 variant="outline"
                 className="h-11 w-full rounded-lg border-dashed"
                 onClick={() => setLines((prev) => [...prev, emptyLine()])}
-                disabled={products.length > 0 && lines.length >= products.length}
               >
                 <Plus className="mr-2 h-4 w-4" />
                 Add Product
