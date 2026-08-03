@@ -1,24 +1,39 @@
-import { useEffect, useMemo, useState } from "react";
-import { ArrowLeftRight, Package } from "lucide-react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
+import { ArrowLeftRight, Loader2, Package, Pencil } from "lucide-react";
+import { toast } from "sonner";
 import { ExportButton } from "@/components/ExportButton";
 import { EmptyState } from "@/components/EmptyState";
 import { PageHeader } from "@/components/PageHeader";
 import { PageShell } from "@/components/PageShell";
+import { RequiredMark } from "@/components/RequiredMark";
 import { TablePagination } from "@/components/enterprise/TablePagination";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DataPanel } from "@/components/ui/surface";
 import { StatusBadge } from "@/components/StatusBadge";
 import { useGlobalSearch } from "@/hooks/use-global-search";
 import { useLocations } from "@/hooks/use-locations";
-import { useMovements } from "@/hooks/use-movements";
+import { useMovements, useUpdateMovement } from "@/hooks/use-movements";
 import { useTransfers } from "@/hooks/use-transfers";
+import { useAuthStore } from "@/store/auth";
+import type { StockMovement } from "@/lib/types";
 import { cn, formatDate, formatNumber } from "@/lib/utils";
 
 type ActivityTab = "stock" | "transfers";
 
 const PAGE_SIZE = 20;
+
+const EDITABLE_MOVEMENT_TYPES = new Set(["PURCHASE", "RETURN", "ADJUSTMENT"]);
 
 function locationName(
   id: string | null | undefined,
@@ -31,8 +46,14 @@ function locationName(
 export default function ActivityPage() {
   const [tab, setTab] = useState<ActivityTab>("stock");
   const [page, setPage] = useState(1);
+  const [editTarget, setEditTarget] = useState<StockMovement | null>(null);
+  const [editQuantity, setEditQuantity] = useState("");
   const { debouncedQuery } = useGlobalSearch();
   const { data: locations = [] } = useLocations();
+  const role = useAuthStore((s) => s.role);
+  const canEditStock =
+    role === "ADMIN" || role === "STORE_MANAGER" || role === "GODOWN_MANAGER";
+  const updateMovement = useUpdateMovement();
 
   const { data: movementPage, isLoading: movementsLoading } = useMovements(
     { page, limit: PAGE_SIZE, search: debouncedQuery },
@@ -73,7 +94,36 @@ export default function ActivityPage() {
     setPage(1);
   }, [debouncedQuery, tab]);
 
+  useEffect(() => {
+    if (editTarget) {
+      setEditQuantity(String(editTarget.quantity));
+    }
+  }, [editTarget]);
+
   const isLoading = tab === "stock" ? movementsLoading : transfersLoading;
+
+  const onSubmitEdit = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!editTarget) return;
+    const qty = Number(editQuantity);
+    if (!Number.isFinite(qty) || qty < 1) {
+      toast.error("Enter a quantity of at least 1");
+      return;
+    }
+    try {
+      await updateMovement.mutateAsync({ id: editTarget.id, quantity: qty });
+      toast.success("Stock entry updated");
+      setEditTarget(null);
+    } catch (error: unknown) {
+      const message =
+        error && typeof error === "object" && "response" in error
+          ? (error as { response?: { data?: { message?: string } } }).response?.data?.message
+          : undefined;
+      toast.error("Failed to update stock entry", {
+        description: message ?? "Check quantity and try again."
+      });
+    }
+  };
 
   return (
     <PageShell>
@@ -139,43 +189,62 @@ export default function ActivityPage() {
           ) : (
             <DataPanel>
               <div className="divide-y divide-border/60">
-                {movements.map((movement) => (
-                  <article
-                    key={movement.id}
-                    className="flex flex-col gap-1.5 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between sm:px-4 sm:py-3"
-                  >
-                    <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-1.5">
-                        <p className="truncate text-sm font-medium">{movement.product.name}</p>
-                        <Badge variant="secondary" className="h-5 px-1.5 text-[10px] sm:text-[11px]">
-                          {movement.movementType}
-                        </Badge>
-                      </div>
-                      <p className="mt-0.5 text-[11px] text-muted-foreground sm:text-xs">
-                        <span className="font-mono">{movement.product.sku ?? "-"}</span>
-                        <span aria-hidden="true"> · </span>
-                        {formatNumber(movement.quantity)} pieces
-                        {movement.fromLocationId || movement.toLocationId ? (
-                          <>
-                            <span aria-hidden="true"> · </span>
-                            {movement.fromLocationId
-                              ? locationName(movement.fromLocationId, locationMap)
-                              : "-"}{" "}
-                            → {locationName(movement.toLocationId, locationMap)}
-                          </>
-                        ) : null}
-                        <span aria-hidden="true"> · </span>
-                        {movement.user.name}
-                      </p>
-                    </div>
-                    <time
-                      dateTime={movement.createdAt}
-                      className="shrink-0 text-[11px] font-medium text-muted-foreground sm:text-xs"
+                {movements.map((movement) => {
+                  const canEdit =
+                    canEditStock && EDITABLE_MOVEMENT_TYPES.has(movement.movementType);
+
+                  return (
+                    <article
+                      key={movement.id}
+                      className="flex flex-col gap-1.5 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between sm:px-4 sm:py-3"
                     >
-                      {formatDate(movement.createdAt)}
-                    </time>
-                  </article>
-                ))}
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <p className="truncate text-sm font-medium">{movement.product.name}</p>
+                          <Badge variant="secondary" className="h-5 px-1.5 text-[10px] sm:text-[11px]">
+                            {movement.movementType}
+                          </Badge>
+                        </div>
+                        <p className="mt-0.5 text-[11px] text-muted-foreground sm:text-xs">
+                          <span className="font-mono">{movement.product.sku ?? "-"}</span>
+                          <span aria-hidden="true"> · </span>
+                          {formatNumber(movement.quantity)} pieces
+                          {movement.fromLocationId || movement.toLocationId ? (
+                            <>
+                              <span aria-hidden="true"> · </span>
+                              {movement.fromLocationId
+                                ? locationName(movement.fromLocationId, locationMap)
+                                : "-"}{" "}
+                              → {locationName(movement.toLocationId, locationMap)}
+                            </>
+                          ) : null}
+                          <span aria-hidden="true"> · </span>
+                          {movement.user.name}
+                        </p>
+                      </div>
+                      <div className="flex shrink-0 items-center gap-2">
+                        {canEdit ? (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-muted-foreground"
+                            aria-label={`Edit ${movement.product.name} stock entry`}
+                            onClick={() => setEditTarget(movement)}
+                          >
+                            <Pencil className="h-3.5 w-3.5" />
+                          </Button>
+                        ) : null}
+                        <time
+                          dateTime={movement.createdAt}
+                          className="text-[11px] font-medium text-muted-foreground sm:text-xs"
+                        >
+                          {formatDate(movement.createdAt)}
+                        </time>
+                      </div>
+                    </article>
+                  );
+                })}
               </div>
               <TablePagination
                 variant="footer"
@@ -220,28 +289,16 @@ export default function ActivityPage() {
                       </div>
                       <p className="mt-0.5 text-[11px] text-muted-foreground sm:text-xs">
                         {formatNumber(itemCount)} {itemCount === 1 ? "product" : "products"} ·{" "}
-                        {formatNumber(totalQty)} pieces
-                        {transfer.requestedByUser?.name ? (
-                          <>
-                            <span aria-hidden="true"> · </span>
-                            {transfer.requestedByUser.name}
-                          </>
-                        ) : null}
+                        {formatNumber(totalQty)} units ·{" "}
+                        {transfer.requestedByUser?.name ?? "Unknown"}
                       </p>
                     </div>
-                    <div className="flex shrink-0 flex-col items-start gap-0.5 sm:items-end">
-                      <time
-                        dateTime={eventDate}
-                        className="text-[11px] font-medium text-muted-foreground sm:text-xs"
-                      >
-                        {formatDate(eventDate)}
-                      </time>
-                      {transfer.completedAt && transfer.createdAt !== transfer.completedAt && (
-                        <span className="text-[10px] text-muted-foreground/80">
-                          Requested {formatDate(transfer.createdAt)}
-                        </span>
-                      )}
-                    </div>
+                    <time
+                      dateTime={eventDate}
+                      className="shrink-0 text-[11px] font-medium text-muted-foreground sm:text-xs"
+                    >
+                      {formatDate(eventDate)}
+                    </time>
                   </article>
                 );
               })}
@@ -257,6 +314,62 @@ export default function ActivityPage() {
           </DataPanel>
         )}
       </section>
+
+      <Dialog
+        open={Boolean(editTarget)}
+        onOpenChange={(open) => {
+          if (!open) setEditTarget(null);
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit stock entry</DialogTitle>
+            <DialogDescription>
+              Change the quantity for {editTarget?.product.name}. Inventory will be adjusted by the
+              difference from the original entry.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={onSubmitEdit} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="edit-qty">
+                Quantity
+                <RequiredMark />
+              </Label>
+              <Input
+                id="edit-qty"
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                value={editQuantity}
+                onChange={(e) => setEditQuantity(e.target.value.replace(/[^\d]/g, ""))}
+                required
+              />
+              {editTarget ? (
+                <p className="text-xs text-muted-foreground">
+                  Original quantity: {formatNumber(editTarget.quantity)}{" "}
+                  {editTarget.product.unit}
+                </p>
+              ) : null}
+            </div>
+            <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              <Button
+                type="button"
+                variant="outline"
+                disabled={updateMovement.isPending}
+                onClick={() => setEditTarget(null)}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={updateMovement.isPending}>
+                {updateMovement.isPending ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : null}
+                Save changes
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
     </PageShell>
   );
 }

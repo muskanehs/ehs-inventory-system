@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Patch,
@@ -187,5 +188,11 @@ export class TransfersController {
   @Roles(Role.ADMIN, Role.STORE_MANAGER)
   complete(@Param("id") id: string, @CurrentUser() user: AuthUserPayload) {
     return this.transfersService.complete(id, user);
+  }
+
+  @Delete(":id")
+  @Roles(Role.ADMIN, Role.STORE_MANAGER, Role.GODOWN_MANAGER)
+  remove(@Param("id") id: string, @CurrentUser() user: AuthUserPayload) {
+    return this.transfersService.delete(id, user);
   }
 }

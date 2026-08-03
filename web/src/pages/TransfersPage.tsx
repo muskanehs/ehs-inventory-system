@@ -65,14 +65,19 @@ export default function TransfersPage() {
   });
   const { data: transferStats } = useTransferStats();
   const { data: locations = [] } = useLocations();
-  const { approve, approveAll, reject } = useTransferActions();
+  const { approve, approveAll, reject, remove } = useTransferActions();
   const role = useAuthStore((s) => s.role);
   const isAdmin = role === "ADMIN";
+  const canDeleteTransfers = role === "ADMIN" || role === "STORE_MANAGER" || role === "GODOWN_MANAGER";
   const pendingCount = transferStats?.pending ?? 0;
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
 
   const transfers = transferPage && "items" in transferPage ? transferPage.items : [];
   const totalPages = transferPage && "totalPages" in transferPage ? transferPage.totalPages : 1;
   const totalItems = transferPage && "total" in transferPage ? transferPage.total : transfers.length;
+  const deleteTarget = deleteTargetId
+    ? transfers.find((transfer) => transfer.id === deleteTargetId) ?? null
+    : null;
 
   const stats = useMemo(
     () => [
@@ -137,7 +142,7 @@ export default function TransfersPage() {
     }
   };
 
-  const busy = approve.isPending || reject.isPending || approveAll.isPending;
+  const busy = approve.isPending || reject.isPending || approveAll.isPending || remove.isPending;
 
   useEffect(() => {
     setPage(1);
@@ -292,6 +297,10 @@ export default function TransfersPage() {
                 transfer={transfer}
                 busy={busy}
                 isAdmin={isAdmin}
+                canDelete={
+                  canDeleteTransfers &&
+                  (role !== "GODOWN_MANAGER" || transfer.status === "PENDING")
+                }
                 onApprove={() =>
                   runAction(
                     () => approve.mutateAsync(transfer.id),
@@ -306,6 +315,7 @@ export default function TransfersPage() {
                     "Reject failed"
                   )
                 }
+                onDelete={() => setDeleteTargetId(transfer.id)}
               />
             ))}
           </div>
@@ -352,6 +362,52 @@ export default function TransfersPage() {
                 <CheckCheck className="mr-2 h-4 w-4" />
               )}
               Yes, approve all
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={Boolean(deleteTarget)}
+        onOpenChange={(open) => {
+          if (!open) setDeleteTargetId(null);
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Delete this transfer?</DialogTitle>
+            <DialogDescription>
+              {deleteTarget?.status === "COMPLETED" || deleteTarget?.status === "APPROVED"
+                ? "Stock moved by this transfer will be restored to the source location (and removed from the destination for internal transfers)."
+                : "This will permanently remove the transfer request."}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+            <Button
+              variant="outline"
+              disabled={remove.isPending}
+              onClick={() => setDeleteTargetId(null)}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={remove.isPending || !deleteTarget}
+              onClick={() => {
+                if (!deleteTarget) return;
+                const wasCompleted =
+                  deleteTarget.status === "COMPLETED" || deleteTarget.status === "APPROVED";
+                void runAction(
+                  () => remove.mutateAsync(deleteTarget.id),
+                  wasCompleted
+                    ? "Transfer deleted - stock restored"
+                    : "Transfer deleted",
+                  "Delete failed"
+                ).finally(() => setDeleteTargetId(null));
+              }}
+            >
+              {remove.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              Delete transfer
             </Button>
           </div>
         </DialogContent>

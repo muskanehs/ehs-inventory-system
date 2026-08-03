@@ -5,6 +5,7 @@ import {
   NotFoundException
 } from "@nestjs/common";
 import { MovementType, Prisma, Role, TransferStatus, TransferType } from "@prisma/client";
+import { InventoryService } from "../inventory/inventory.service";
 import { MovementsService } from "../movements/movements.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { CreateTransferDto } from "./dto/create-transfer.dto";
@@ -14,6 +15,7 @@ import { parsePagination } from "../common/utils/pagination";
 import {
   assertCanAccessTransferLocations,
   assertCanCreateTransferFrom,
+  isPrivilegedInventoryRole,
   resolveLocationScope,
   transferLocationFilter
 } from "../common/utils/location-scope";
@@ -48,7 +50,8 @@ export type TransferListOptions = {
 export class TransfersService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly movementsService: MovementsService
+    private readonly movementsService: MovementsService,
+    private readonly inventoryService: InventoryService
   ) {}
 
   async findAll(
@@ -364,38 +367,57 @@ export class TransfersService {
       transfer.customerAddress ? `Address: ${transfer.customerAddress}` : null,
       transfer.remarks
     ].filter(Boolean);
+    const remarks =
+      transfer.transferType === TransferType.CUSTOMER
+        ? customerRemarkParts.join(" | ") || undefined
+        : transfer.remarks ?? undefined;
 
-    for (const item of transfer.items) {
-      if (transfer.transferType === TransferType.CUSTOMER) {
-        await this.movementsService.createMovement({
-          productId: item.productId,
-          fromLocationId: transfer.fromLocationId,
-          quantity: item.quantity,
-          movementType: MovementType.SALE,
-          performedBy: approvedBy,
-          remarks: customerRemarkParts.join(" | ") || undefined
-        });
-      } else {
-        await this.movementsService.createMovement({
-          productId: item.productId,
-          fromLocationId: transfer.fromLocationId,
-          toLocationId: transfer.toLocationId!,
-          quantity: item.quantity,
-          movementType: MovementType.TRANSFER,
-          performedBy: approvedBy,
-          remarks: transfer.remarks ?? undefined
+    // Apply stock + mark completed in one transaction so a partial failure cannot leave
+    // inventory changed while the transfer stays PENDING.
+    return this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+      for (const item of transfer.items) {
+        await this.inventoryService.applyDeltaTx(
+          tx,
+          item.productId,
+          transfer.fromLocationId,
+          -item.quantity
+        );
+
+        if (transfer.transferType === TransferType.INTERNAL && transfer.toLocationId) {
+          await this.inventoryService.applyDeltaTx(
+            tx,
+            item.productId,
+            transfer.toLocationId,
+            item.quantity
+          );
+        }
+
+        await tx.stockMovement.create({
+          data: {
+            productId: item.productId,
+            fromLocationId: transfer.fromLocationId,
+            toLocationId:
+              transfer.transferType === TransferType.INTERNAL ? transfer.toLocationId : null,
+            quantity: item.quantity,
+            movementType:
+              transfer.transferType === TransferType.CUSTOMER
+                ? MovementType.SALE
+                : MovementType.TRANSFER,
+            remarks,
+            performedBy: approvedBy
+          }
         });
       }
-    }
 
-    return this.prisma.transfer.update({
-      where: { id },
-      data: {
-        status: TransferStatus.COMPLETED,
-        approvedBy,
-        completedAt: new Date()
-      },
-      include: { items: true }
+      return tx.transfer.update({
+        where: { id },
+        data: {
+          status: TransferStatus.COMPLETED,
+          approvedBy,
+          completedAt: new Date()
+        },
+        include: { items: true }
+      });
     });
   }
 
@@ -502,5 +524,95 @@ export class TransfersService {
       data: { status: TransferStatus.COMPLETED, completedAt: new Date() },
       include: { items: true }
     });
+  }
+
+  async delete(id: string, user: AuthUserPayload) {
+    const transfer = await this.prisma.transfer.findUnique({
+      where: { id },
+      include: { items: true }
+    });
+    if (!transfer) {
+      throw new NotFoundException("Transfer not found");
+    }
+
+    assertCanAccessTransferLocations(user, transfer.fromLocationId, transfer.toLocationId);
+
+    const isPrivileged = isPrivilegedInventoryRole(user.role);
+    const isOwnPending =
+      user.role === Role.GODOWN_MANAGER &&
+      transfer.status === TransferStatus.PENDING &&
+      (transfer.requestedBy === user.sub || transfer.fromLocationId === user.assignedLocationId);
+
+    if (!isPrivileged && !isOwnPending) {
+      throw new ForbiddenException("You cannot delete this transfer");
+    }
+
+    const status = String(transfer.status);
+    const completedLike = status === "COMPLETED" || status === "APPROVED";
+    let stockRestored = false;
+
+    await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+      for (const item of transfer.items) {
+        const movementType =
+          transfer.transferType === TransferType.CUSTOMER
+            ? MovementType.SALE
+            : MovementType.TRANSFER;
+
+        const matched = await tx.stockMovement.findFirst({
+          where: {
+            productId: item.productId,
+            fromLocationId: transfer.fromLocationId,
+            ...(transfer.transferType === TransferType.INTERNAL
+              ? { toLocationId: transfer.toLocationId }
+              : { toLocationId: null }),
+            quantity: item.quantity,
+            movementType
+          },
+          orderBy: { createdAt: "desc" }
+        });
+
+        // Reverse when completed/approved, or when a matching movement still exists
+        // (covers partial-approve leftovers that stayed PENDING).
+        const shouldReverse = completedLike || Boolean(matched);
+        if (!shouldReverse) continue;
+
+        const fromLocationId = matched?.fromLocationId ?? transfer.fromLocationId;
+        const toLocationId =
+          matched?.toLocationId ??
+          (transfer.transferType === TransferType.INTERNAL ? transfer.toLocationId : null);
+        const qty = matched?.quantity ?? item.quantity;
+
+        // Undo outbound at source.
+        await this.inventoryService.applyDeltaTx(tx, item.productId, fromLocationId, qty);
+
+        // Undo inbound at destination (internal transfers only).
+        if (toLocationId) {
+          try {
+            await this.inventoryService.applyDeltaTx(tx, item.productId, toLocationId, -qty);
+          } catch (error: unknown) {
+            const message =
+              error && typeof error === "object" && "message" in error
+                ? String((error as { message: unknown }).message)
+                : "";
+            if (message.toLowerCase().includes("negative inventory")) {
+              throw new BadRequestException(
+                "Cannot delete this transfer because the destination no longer has enough stock to reverse. Move the quantity back to the destination first, then delete."
+              );
+            }
+            throw error;
+          }
+        }
+
+        if (matched) {
+          await tx.stockMovement.delete({ where: { id: matched.id } });
+        }
+
+        stockRestored = true;
+      }
+
+      await tx.transfer.delete({ where: { id } });
+    });
+
+    return { id, deleted: true, stockRestored };
   }
 }

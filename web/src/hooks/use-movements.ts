@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import type { ApiResponse, PaginatedResult, StockMovement } from "@/lib/types";
 import { useLocationScope } from "@/hooks/use-location-scope";
@@ -37,6 +37,23 @@ export function useMovements(
         }
       );
       return response.data.data;
+    }
+  });
+}
+
+export function useUpdateMovement() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, quantity }: { id: string; quantity: number }) => {
+      const response = await api.patch<ApiResponse<StockMovement>>(`/movements/${id}`, {
+        quantity
+      });
+      return response.data.data;
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["movements"] });
+      void queryClient.invalidateQueries({ queryKey: ["inventory"] });
+      void queryClient.invalidateQueries({ queryKey: ["dashboard"] });
     }
   });
 }

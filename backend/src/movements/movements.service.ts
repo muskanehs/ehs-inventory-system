@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException, Injectable } from "@nestjs/common";
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import { MovementType, Prisma, Role } from "@prisma/client";
 import { InventoryService } from "../inventory/inventory.service";
 import { PrismaService } from "../prisma/prisma.service";
@@ -228,6 +228,66 @@ export class MovementsService {
         created.push(movement);
       }
       return created;
+    });
+  }
+
+  async updateQuantity(id: string, quantity: number, actor: AuthUserPayload) {
+    const movement = await this.prisma.stockMovement.findUnique({
+      where: { id },
+      include: movementInclude
+    });
+    if (!movement) {
+      throw new NotFoundException("Stock entry not found");
+    }
+
+    const editableTypes: MovementType[] = [
+      MovementType.PURCHASE,
+      MovementType.RETURN,
+      MovementType.ADJUSTMENT
+    ];
+    if (!editableTypes.includes(movement.movementType)) {
+      throw new BadRequestException("Only purchase, return, and adjustment entries can be edited");
+    }
+
+    this.assertCanCreateMovement(actor, {
+      productId: movement.productId,
+      fromLocationId: movement.fromLocationId,
+      toLocationId: movement.toLocationId,
+      quantity,
+      movementType: movement.movementType
+    });
+
+    if (quantity === movement.quantity) {
+      return movement;
+    }
+
+    const delta = quantity - movement.quantity;
+
+    return this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+      // Reverse original effect by the difference: new inventory = old + (newQty - oldQty) on destination,
+      // and opposite on source when present.
+      if (movement.fromLocationId) {
+        await this.inventoryService.applyDeltaTx(
+          tx,
+          movement.productId,
+          movement.fromLocationId,
+          -delta
+        );
+      }
+      if (movement.toLocationId) {
+        await this.inventoryService.applyDeltaTx(
+          tx,
+          movement.productId,
+          movement.toLocationId,
+          delta
+        );
+      }
+
+      return tx.stockMovement.update({
+        where: { id },
+        data: { quantity },
+        include: movementInclude
+      });
     });
   }
 }

@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, Query, Res, UseGuards } from "@nestjs/common";
+import { Body, Controller, Get, Param, Patch, Post, Query, Res, UseGuards } from "@nestjs/common";
 import { Role } from "@prisma/client";
 import { Response } from "express";
 import { Throttle } from "@nestjs/throttler";
@@ -11,6 +11,7 @@ import { ExcelExportService } from "../common/export/excel-export.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { CreateMovementDto } from "./dto/create-movement.dto";
 import { CreateBatchMovementDto } from "./dto/create-batch-movement.dto";
+import { UpdateMovementDto } from "./dto/update-movement.dto";
 import { MovementsService } from "./movements.service";
 
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -109,5 +110,15 @@ export class MovementsController {
       { ...dto, performedBy: user.sub },
       user
     );
+  }
+
+  @Patch(":id")
+  @Roles(Role.ADMIN, Role.STORE_MANAGER, Role.GODOWN_MANAGER)
+  update(
+    @Param("id") id: string,
+    @Body() dto: UpdateMovementDto,
+    @CurrentUser() user: AuthUserPayload
+  ) {
+    return this.movementsService.updateQuantity(id, dto.quantity, user);
   }
 }

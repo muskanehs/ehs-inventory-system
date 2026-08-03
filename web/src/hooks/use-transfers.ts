@@ -83,6 +83,8 @@ export function useTransferActions() {
     void queryClient.invalidateQueries({ queryKey: ["inventory"] });
     void queryClient.invalidateQueries({ queryKey: ["movements"] });
     void queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+    void queryClient.invalidateQueries({ queryKey: ["locations"] });
+    void queryClient.invalidateQueries({ queryKey: ["godowns"] });
   };
 
   const approve = useMutation({
@@ -125,5 +127,15 @@ export function useTransferActions() {
     onSuccess: invalidate
   });
 
-  return { approve, approveAll, reject, complete };
+  const remove = useMutation({
+    mutationFn: async (id: string) => {
+      const response = await api.delete<ApiResponse<{ id: string; deleted: boolean }>>(
+        `/transfers/${id}`
+      );
+      return response.data.data;
+    },
+    onSuccess: invalidate
+  });
+
+  return { approve, approveAll, reject, complete, remove };
 }

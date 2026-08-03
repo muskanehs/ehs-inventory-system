@@ -4,6 +4,7 @@ import {
   Download,
   Loader2,
   Phone,
+  Trash2,
   Truck,
   User
 } from "lucide-react";
@@ -34,8 +35,10 @@ type TransferCardProps = {
   transfer: Transfer;
   busy: boolean;
   isAdmin: boolean;
+  canDelete: boolean;
   onApprove: () => void;
   onReject: () => void;
+  onDelete: () => void;
 };
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
@@ -98,8 +101,10 @@ export function TransferCard({
   transfer,
   busy,
   isAdmin,
+  canDelete,
   onApprove,
-  onReject
+  onReject,
+  onDelete
 }: TransferCardProps) {
   const requester = transfer.requestedByUser?.name ?? "Unknown";
   const isCustomer = transfer.transferType === "CUSTOMER";
@@ -193,6 +198,44 @@ export function TransferCard({
               onClick={onApprove}
             >
               {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Approve"}
+            </Button>
+          </div>
+        )}
+
+        {canDelete && !canApprove && (
+          <div
+            className="mt-3 flex w-full flex-row gap-2 justify-end"
+            onClick={(e) => e.stopPropagation()}
+            onPointerDown={(e) => e.stopPropagation()}
+          >
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-9 gap-1.5 px-4 text-xs font-medium text-destructive hover:bg-destructive/10 hover:text-destructive"
+              disabled={busy}
+              onClick={onDelete}
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              Delete
+            </Button>
+          </div>
+        )}
+
+        {canDelete && canApprove && (
+          <div
+            className="mt-2 flex w-full justify-end"
+            onClick={(e) => e.stopPropagation()}
+            onPointerDown={(e) => e.stopPropagation()}
+          >
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-8 gap-1.5 px-2 text-xs text-muted-foreground hover:text-destructive"
+              disabled={busy}
+              onClick={onDelete}
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              Delete request
             </Button>
           </div>
         )}
