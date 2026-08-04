@@ -18,7 +18,7 @@
 Request:
 ```json
 {
-  "email": "admin@inventory.local",
+  "email": "admin@ehsinventory.in",
   "password": "Admin@123"
 }
 ```

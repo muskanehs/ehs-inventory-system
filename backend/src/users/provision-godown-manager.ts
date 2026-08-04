@@ -18,7 +18,7 @@ async function resolveUniqueEmail(
   godownName: string
 ): Promise<string> {
   const base = slugify(godownName) || "godown";
-  let candidate = `godown-${base}@inventory.local`;
+  let candidate = `godown-${base}@ehsinventory.in`;
   let suffix = 2;
 
   while (
@@ -26,7 +26,7 @@ async function resolveUniqueEmail(
       where: { email: candidate, ...NOT_DELETED }
     })
   ) {
-    candidate = `godown-${base}-${suffix}@inventory.local`;
+    candidate = `godown-${base}-${suffix}@ehsinventory.in`;
     suffix += 1;
   }
 

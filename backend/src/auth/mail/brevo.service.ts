@@ -98,8 +98,7 @@ export class BrevoService implements OnModuleInit {
     }
 
     const recipients = new Map<string, { email: string }>();
-    // Seed accounts like admin@inventory.local are not deliverable; only send to
-    // real mailboxes / RECOVERY_EMAIL.
+    // Non-deliverable account emails are skipped; OTP goes to RECOVERY_EMAIL when set.
     if (isDeliverableEmail(accountEmail)) {
       recipients.set(accountEmail.toLowerCase(), { email: accountEmail.trim() });
     }

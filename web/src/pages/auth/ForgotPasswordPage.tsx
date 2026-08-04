@@ -70,7 +70,7 @@ export default function ForgotPasswordPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="h-11 bg-muted/50 pl-10"
-                placeholder="admin@inventory.local"
+                placeholder="admin@ehsinventory.in"
                 autoComplete="email"
                 disabled={loading}
                 required

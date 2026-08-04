@@ -38,9 +38,7 @@ You only see the menus your login is allowed to use.
 
 | Email | Starting password |
 |--------|-------------------|
-| `admin@inventory.local` | `Admin@123` |
-| `godown1@inventory.local` | `Godown@123` |
-| `godown2@inventory.local` | `Godown@123` |
+| `admin@ehsinventory.in` | `Admin@123` |
 
 On first login, the system will ask you to **set a new password**.  
 Choose something different from the starting password, then continue.
@@ -59,9 +57,7 @@ Choose something different from the starting password, then continue.
 ### Where to find the OTP code
 
 - If your login is a **real email** (like Gmail), check that inbox (and spam).  
-- If your login looks like `admin@inventory.local` (starter accounts), that inbox is **not real**.  
-  Someone with access to **Brevo** (the email tool used by the store) must log in to Brevo, open the recent password-reset message, and give you the OTP.  
-  The code may also arrive in the store’s recovery email (ask your administrator).
+- If your login mailbox isn’t set up yet, check the store’s **recovery email** (ask your administrator), or someone with **Brevo** access can open the password-reset message and give you the OTP.
 
 The OTP is valid for a short time (about **10 minutes**). If it expires, start Forgot password again.
 
@@ -250,7 +246,7 @@ Use them on the Dashboard, or on Stock with the Fast / Slow filter.
 - Change the starter password on first login.  
 - Don’t share your password.  
 - If you forget it, use **Forgot password** (see earlier section).  
-- For starter `@inventory.local` accounts, ask the person who manages Brevo for the OTP.
+- If OTP email doesn’t arrive in your inbox, ask the person who manages Brevo / the recovery mailbox.
 
 ---
 

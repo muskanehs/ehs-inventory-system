@@ -28,7 +28,7 @@ type LoginResponse = {
   user: AuthUser;
 };
 
-const DEMO_EMAIL = "admin@inventory.local";
+const DEMO_EMAIL = "admin@ehsinventory.in";
 const DEMO_PASSWORD = "Admin@123";
 const isDev = import.meta.env.DEV;
 
