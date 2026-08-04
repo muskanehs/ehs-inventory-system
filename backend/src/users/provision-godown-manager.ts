@@ -3,22 +3,24 @@ import * as bcrypt from "bcrypt";
 import { NOT_DELETED } from "../common/utils/soft-delete";
 
 const DEFAULT_GODOWN_PASSWORD = "Godown@123";
+const EMAIL_DOMAIN = "ehsinventory.in";
 
-function slugify(value: string): string {
-  return value
+/** "Mittal Godown" → "mittalgodown" */
+function emailLocalPart(value: string): string {
+  const local = value
     .trim()
     .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 40);
+    .replace(/[^a-z0-9]/g, "")
+    .slice(0, 64);
+  return local || "godown";
 }
 
 async function resolveUniqueEmail(
   tx: Prisma.TransactionClient,
   godownName: string
 ): Promise<string> {
-  const base = slugify(godownName) || "godown";
-  let candidate = `godown-${base}@ehsinventory.in`;
+  const base = emailLocalPart(godownName);
+  let candidate = `${base}@${EMAIL_DOMAIN}`;
   let suffix = 2;
 
   while (
@@ -26,7 +28,7 @@ async function resolveUniqueEmail(
       where: { email: candidate, ...NOT_DELETED }
     })
   ) {
-    candidate = `godown-${base}-${suffix}@ehsinventory.in`;
+    candidate = `${base}${suffix}@${EMAIL_DOMAIN}`;
     suffix += 1;
   }
 
