@@ -147,7 +147,7 @@ export function AddStockDialog({ open, onOpenChange, initialProductId }: AddStoc
         if (!value) resetForm();
       }}
     >
-      <DialogContent className="flex max-h-[min(90vh,100dvh-2rem)] w-[calc(100%-2rem)] max-w-[560px] flex-col gap-0 overflow-hidden p-0">
+      <DialogContent className="flex max-h-[min(90vh,100dvh-2rem)] w-[calc(100%-2rem)] max-w-[560px] flex-col gap-0 overflow-hidden p-0 lg:w-[75vw] lg:max-w-[75vw]">
         <DialogHeader className="shrink-0 space-y-1 border-b px-6 py-5 pr-14 text-left">
           <DialogTitle>Add Stock</DialogTitle>
           <DialogDescription>

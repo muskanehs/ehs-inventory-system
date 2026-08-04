@@ -339,7 +339,7 @@ export function ProductFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex max-h-[90vh] w-[calc(100%-2rem)] max-w-4xl flex-col gap-0 overflow-hidden p-0">
+      <DialogContent className="flex max-h-[90vh] w-[calc(100%-2rem)] max-w-4xl flex-col gap-0 overflow-hidden p-0 lg:w-[75vw] lg:max-w-[75vw]">
         <DialogHeader className="shrink-0 space-y-1 border-b px-6 py-5 pr-14 text-left">
           <DialogTitle>Add Products</DialogTitle>
           <DialogDescription>
@@ -372,7 +372,7 @@ export function ProductFormDialog({
                 <div
                   key={row.key}
                   className={cn(
-                    "grid gap-2 rounded-lg border border-border/60 bg-muted/10 p-2 sm:grid-cols-[minmax(0,1.4fr)_minmax(0,0.9fr)_minmax(0,1fr)_120px_72px_36px] sm:items-center sm:border-0 sm:bg-transparent sm:p-0"
+                    "grid gap-2 rounded-lg border border-border/60 bg-muted/10 p-2 sm:grid-cols-[minmax(0,1.4fr)_minmax(0,0.9fr)_minmax(0,1fr)_120px_72px_36px] sm:items-start sm:border-0 sm:bg-transparent sm:p-0"
                   )}
                 >
                   <div className="space-y-1 sm:space-y-0">

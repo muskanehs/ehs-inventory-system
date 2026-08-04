@@ -80,71 +80,6 @@ export function SearchableSelect({
     };
   }, [open]);
 
-  if (open) {
-    return (
-      <div
-        ref={rootRef}
-        className={cn(
-          "overflow-hidden rounded-lg border border-border bg-surface shadow-sm",
-          className
-        )}
-      >
-        <div className="flex items-center gap-2 border-b px-3 py-2">
-          <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
-          <Input
-            ref={inputRef}
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder={searchPlaceholder}
-            className="h-8 border-0 bg-transparent px-0 shadow-none focus-visible:ring-0"
-            aria-label="Search options"
-            autoComplete="off"
-          />
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 shrink-0 text-muted-foreground"
-            onClick={() => setOpen(false)}
-            aria-label="Close search"
-          >
-            <X className="h-4 w-4" />
-          </Button>
-        </div>
-        <div className="max-h-48 overflow-y-auto p-1" role="listbox">
-          {filtered.length === 0 ? (
-            <p className="px-3 py-6 text-center text-sm text-muted-foreground">{emptyText}</p>
-          ) : (
-            filtered.map((option) => {
-              const isActive = option.value === value;
-              return (
-                <button
-                  key={option.value}
-                  type="button"
-                  role="option"
-                  aria-selected={isActive}
-                  className={cn(
-                    "flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-sm outline-none transition-colors hover:bg-primary-muted hover:text-primary",
-                    isActive && "bg-primary-muted text-primary"
-                  )}
-                  onClick={() => {
-                    onValueChange(option.value);
-                    setOpen(false);
-                  }}
-                >
-                  <Check
-                    className={cn("h-4 w-4 shrink-0", isActive ? "opacity-100" : "opacity-0")}
-                  />
-                  <span className="min-w-0 flex-1 truncate">{option.label}</span>
-                </button>
-              );
-            })
-          )}
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div ref={rootRef} className={cn("w-full", className)}>
       <Button
@@ -152,18 +87,78 @@ export function SearchableSelect({
         variant="outline"
         disabled={disabled}
         aria-label={ariaLabel}
-        aria-expanded={false}
+        aria-expanded={open}
         aria-haspopup="listbox"
         className={cn(
           "h-9 w-full justify-between rounded-lg px-3 text-sm font-normal hover:bg-surface",
           !selected && "text-muted-foreground",
+          open && "border-primary/40 ring-2 ring-primary/15",
           triggerClassName
         )}
-        onClick={() => setOpen(true)}
+        onClick={() => setOpen((prev) => !prev)}
       >
         <span className="truncate">{selected?.label ?? placeholder}</span>
-        <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+        <ChevronDown
+          className={cn("ml-2 h-4 w-4 shrink-0 opacity-50 transition-transform", open && "rotate-180")}
+        />
       </Button>
+
+      {open ? (
+        <div className="mt-1 overflow-hidden rounded-lg border border-border bg-surface shadow-sm">
+          <div className="flex items-center gap-2 border-b px-3 py-2">
+            <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
+            <Input
+              ref={inputRef}
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder={searchPlaceholder}
+              className="h-8 border-0 bg-transparent px-0 shadow-none focus-visible:ring-0"
+              aria-label="Search options"
+              autoComplete="off"
+            />
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 shrink-0 text-muted-foreground"
+              onClick={() => setOpen(false)}
+              aria-label="Close search"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+          <div className="max-h-48 overflow-y-auto p-1" role="listbox">
+            {filtered.length === 0 ? (
+              <p className="px-3 py-6 text-center text-sm text-muted-foreground">{emptyText}</p>
+            ) : (
+              filtered.map((option) => {
+                const isActive = option.value === value;
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    role="option"
+                    aria-selected={isActive}
+                    className={cn(
+                      "flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-sm outline-none transition-colors hover:bg-primary-muted hover:text-primary",
+                      isActive && "bg-primary-muted text-primary"
+                    )}
+                    onClick={() => {
+                      onValueChange(option.value);
+                      setOpen(false);
+                    }}
+                  >
+                    <Check
+                      className={cn("h-4 w-4 shrink-0", isActive ? "opacity-100" : "opacity-0")}
+                    />
+                    <span className="min-w-0 flex-1 truncate">{option.label}</span>
+                  </button>
+                );
+              })
+            )}
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

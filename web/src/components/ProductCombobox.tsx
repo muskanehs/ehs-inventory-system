@@ -115,77 +115,6 @@ export function ProductCombobox({
       ? formatProductLabel(selected)
       : selectedLabel || null;
 
-  if (open) {
-    return (
-      <div
-        ref={rootRef}
-        className={cn(
-          "overflow-hidden rounded-lg border border-border bg-surface shadow-sm",
-          className
-        )}
-      >
-        <div className="flex items-center gap-2 border-b px-3 py-2">
-          <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
-          <Input
-            ref={inputRef}
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder={searchPlaceholder}
-            className="h-8 border-0 bg-transparent px-0 shadow-none focus-visible:ring-0"
-            aria-label="Search products"
-            autoComplete="off"
-          />
-          {isFetching ? (
-            <Loader2 className="h-4 w-4 shrink-0 animate-spin text-muted-foreground" />
-          ) : null}
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 shrink-0 text-muted-foreground"
-            onClick={() => setOpen(false)}
-            aria-label="Close product search"
-          >
-            <X className="h-4 w-4" />
-          </Button>
-        </div>
-        <div className="max-h-48 overflow-y-auto p-1" role="listbox">
-          {options.length === 0 ? (
-            <p className="px-3 py-6 text-center text-sm text-muted-foreground">
-              {debouncedSearch ? "No products match your search." : "No products available."}
-            </p>
-          ) : (
-            options.map((product) => {
-              const isActive = product.id === value;
-              return (
-                <button
-                  key={product.id}
-                  type="button"
-                  role="option"
-                  aria-selected={isActive}
-                  className={cn(
-                    "flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-sm outline-none transition-colors hover:bg-primary-muted hover:text-primary",
-                    isActive && "bg-primary-muted text-primary"
-                  )}
-                  onClick={() => {
-                    setSelected(product);
-                    onValueChange(product.id, product);
-                    setOpen(false);
-                  }}
-                >
-                  <Check
-                    className={cn("h-4 w-4 shrink-0", isActive ? "opacity-100" : "opacity-0")}
-                  />
-                  <span className="min-w-0 flex-1 truncate">{formatProductLabel(product)}</span>
-                </button>
-              );
-            })
-          )}
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div ref={rootRef} className={cn("w-full", className)}>
       <Button
@@ -193,17 +122,83 @@ export function ProductCombobox({
         variant="outline"
         disabled={disabled}
         aria-label={ariaLabel}
-        aria-expanded={false}
+        aria-expanded={open}
         aria-haspopup="listbox"
         className={cn(
           "h-11 w-full justify-between rounded-lg px-3 text-sm font-normal hover:bg-surface",
-          !label && "text-muted-foreground"
+          !label && "text-muted-foreground",
+          open && "border-primary/40 ring-2 ring-primary/15"
         )}
-        onClick={() => setOpen(true)}
+        onClick={() => setOpen((prev) => !prev)}
       >
         <span className="truncate">{label ?? placeholder}</span>
-        <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+        <ChevronDown
+          className={cn("ml-2 h-4 w-4 shrink-0 opacity-50 transition-transform", open && "rotate-180")}
+        />
       </Button>
+
+      {open ? (
+        <div className="mt-1 overflow-hidden rounded-lg border border-border bg-surface shadow-sm">
+          <div className="flex items-center gap-2 border-b px-3 py-2">
+            <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
+            <Input
+              ref={inputRef}
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder={searchPlaceholder}
+              className="h-8 border-0 bg-transparent px-0 shadow-none focus-visible:ring-0"
+              aria-label="Search products"
+              autoComplete="off"
+            />
+            {isFetching ? (
+              <Loader2 className="h-4 w-4 shrink-0 animate-spin text-muted-foreground" />
+            ) : null}
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 shrink-0 text-muted-foreground"
+              onClick={() => setOpen(false)}
+              aria-label="Close product search"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+          <div className="max-h-48 overflow-y-auto p-1" role="listbox">
+            {options.length === 0 ? (
+              <p className="px-3 py-6 text-center text-sm text-muted-foreground">
+                {debouncedSearch ? "No products match your search." : "No products available."}
+              </p>
+            ) : (
+              options.map((product) => {
+                const isActive = product.id === value;
+                return (
+                  <button
+                    key={product.id}
+                    type="button"
+                    role="option"
+                    aria-selected={isActive}
+                    className={cn(
+                      "flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-sm outline-none transition-colors hover:bg-primary-muted hover:text-primary",
+                      isActive && "bg-primary-muted text-primary"
+                    )}
+                    onClick={() => {
+                      setSelected(product);
+                      onValueChange(product.id, product);
+                      setOpen(false);
+                    }}
+                  >
+                    <Check
+                      className={cn("h-4 w-4 shrink-0", isActive ? "opacity-100" : "opacity-0")}
+                    />
+                    <span className="min-w-0 flex-1 truncate">{formatProductLabel(product)}</span>
+                  </button>
+                );
+              })
+            )}
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
