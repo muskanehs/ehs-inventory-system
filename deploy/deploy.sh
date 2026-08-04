@@ -18,15 +18,15 @@ fi
 echo "==> Installing dependencies"
 npm install
 
-echo "==> Building backend"
-npm run build -w backend
-
 echo "==> Prisma generate + migrate"
 (
   cd backend
   npx prisma generate
   npx prisma migrate deploy
 )
+
+echo "==> Building backend"
+npm run build -w backend
 
 echo "==> Building web (VITE_API_URL=/api)"
 (
