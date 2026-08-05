@@ -66,13 +66,14 @@ const PAGE_SIZE = 10;
 
 const STOCK_FILTERS: { value: StockListFilter; label: string }[] = [
   { value: "all", label: "All stock" },
+  { value: "has", label: "Has stock" },
   { value: "low", label: "Low stock" },
   { value: "fast", label: "Fast moving" },
   { value: "slow", label: "Slow moving" }
 ];
 
 function parseStockFilter(value: string | null): StockListFilter {
-  if (value === "low" || value === "fast" || value === "slow") return value;
+  if (value === "has" || value === "low" || value === "fast" || value === "slow") return value;
   return "all";
 }
 
@@ -173,15 +174,17 @@ export default function InventoryPage() {
 
   const paginated = useMemo(() => {
     const items = groupedPage?.items ?? [];
-    return items.map((group) => {
-      const mapped = mapApiProductStockGroup(group, locations);
-      return {
-        group: mapped,
-        status: getProductStatus(mapped),
-        distribution: [...mapped.storeLocations, ...mapped.godownLocations]
-      };
-    });
-  }, [groupedPage?.items, locations]);
+    return items
+      .map((group) => {
+        const mapped = mapApiProductStockGroup(group, locations);
+        return {
+          group: mapped,
+          status: getProductStatus(mapped),
+          distribution: [...mapped.storeLocations, ...mapped.godownLocations]
+        };
+      })
+      .filter(({ group }) => (stockFilter === "has" ? group.totalQuantity > 0 : true));
+  }, [groupedPage?.items, locations, stockFilter]);
 
   const totalPages = groupedPage?.totalPages ?? 1;
   const totalItems = groupedPage?.total ?? 0;

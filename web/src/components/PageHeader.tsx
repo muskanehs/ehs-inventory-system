@@ -43,8 +43,8 @@ export function PageHeader({
           ))}
         </nav>
       )}
-      <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
-        <div className="min-w-0 flex-1 space-y-1.5">
+      <div className="flex flex-col gap-4">
+        <div className="min-w-0 space-y-1.5">
           <h1 className="text-balance text-[1.65rem] font-semibold tracking-tight text-foreground sm:text-[1.85rem] sm:leading-tight">
             {title}
           </h1>
@@ -55,7 +55,7 @@ export function PageHeader({
           )}
         </div>
         {actions && (
-          <div className="flex w-full min-w-0 flex-wrap items-center gap-2 xl:w-auto xl:shrink-0 xl:justify-end">
+          <div className="flex w-full min-w-0 flex-wrap items-center gap-2">
             {actions}
           </div>
         )}

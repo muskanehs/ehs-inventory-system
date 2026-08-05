@@ -22,7 +22,7 @@ export function useInventory(locationId?: string) {
   });
 }
 
-export type StockListFilter = "all" | "low" | "fast" | "slow";
+export type StockListFilter = "all" | "has" | "low" | "fast" | "slow";
 
 export function useGroupedInventory(params: {
   page: number;

@@ -7,7 +7,7 @@ import { parsePagination } from "../common/utils/pagination";
 import { resolveInventoryScope } from "../common/utils/location-scope";
 import { NOT_DELETED } from "../common/utils/soft-delete";
 
-export type StockListFilter = "all" | "low" | "fast" | "slow";
+export type StockListFilter = "all" | "has" | "low" | "fast" | "slow";
 
 export type ProductStockGroup = {
   product: Prisma.ProductGetPayload<{ include: { category: true } }>;
@@ -19,7 +19,7 @@ export type ProductStockGroup = {
 };
 
 function parseStockFilter(value?: string): StockListFilter {
-  if (value === "low" || value === "fast" || value === "slow") return value;
+  if (value === "has" || value === "low" || value === "fast" || value === "slow") return value;
   return "all";
 }
 
@@ -85,6 +85,16 @@ export class InventoryService {
         return toPaginatedResult([], 0, page, limit);
       }
       productWhere.id = { in: lowIds };
+    } else if (stockFilter === "has") {
+      const hasIds = await this.findHasStockProductIds(scopeLocationId, {
+        ...searchWhere,
+        ...(categoryId ? { categoryId } : {})
+      });
+      if (hasIds.length === 0) {
+        if (!isPaginated) return [];
+        return toPaginatedResult([], 0, page, limit);
+      }
+      productWhere.id = { in: hasIds };
     }
 
     const [products, total, locations] = await Promise.all([
@@ -94,7 +104,10 @@ export class InventoryService {
           category: true,
           inventory: {
             include: { location: true },
-            ...(scopeLocationId ? { where: { locationId: scopeLocationId } } : {})
+            where: {
+              location: NOT_DELETED,
+              ...(scopeLocationId ? { locationId: scopeLocationId } : {})
+            }
           }
         },
         orderBy: { name: "asc" },
@@ -104,13 +117,39 @@ export class InventoryService {
       this.prisma.location.findMany({ where: NOT_DELETED, orderBy: { name: "asc" } })
     ]);
 
-    const groups = products.map((product) => this.toProductStockGroup(product, locations));
+    // Defense: never return zero-qty rows for "has stock" (scoped or overall).
+    const groups = products
+      .map((product) => this.toProductStockGroup(product, locations))
+      .filter((group) => (stockFilter === "has" ? group.totalQuantity > 0 : true));
 
     if (!isPaginated) {
       return groups;
     }
 
+    // Prefer DB total for pagination; if we dropped zero-qty rows, recount for this page only
+    // is wrong — hasIds query already excludes zeros, so totals stay accurate.
     return toPaginatedResult(groups, total, page, limit);
+  }
+
+  /** Product IDs with quantity >= 1 in the active location scope. */
+  private async findHasStockProductIds(
+    scopeLocationId: string | undefined,
+    searchWhere: Prisma.ProductWhereInput
+  ): Promise<string[]> {
+    const rows = await this.prisma.inventory.findMany({
+      where: {
+        quantity: { gt: 0 },
+        location: NOT_DELETED,
+        product: {
+          ...NOT_DELETED,
+          ...searchWhere
+        },
+        ...(scopeLocationId ? { locationId: scopeLocationId } : {})
+      },
+      select: { productId: true },
+      distinct: ["productId"]
+    });
+    return rows.map((row) => row.productId);
   }
 
   private async findLowStockProductIds(
