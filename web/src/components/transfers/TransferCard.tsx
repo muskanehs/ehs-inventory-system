@@ -36,6 +36,7 @@ type TransferCardProps = {
   busy: boolean;
   isAdmin: boolean;
   canDelete: boolean;
+  canDownload?: boolean;
   onApprove: () => void;
   onReject: () => void;
   onDelete: () => void;
@@ -102,6 +103,7 @@ export function TransferCard({
   busy,
   isAdmin,
   canDelete,
+  canDownload = true,
   onApprove,
   onReject,
   onDelete
@@ -269,20 +271,22 @@ export function TransferCard({
                       value={transfer.customerPhone ?? "-"}
                     />
                   </div>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="mt-3 h-9 gap-1.5 text-xs"
-                    onClick={handleDownloadSlip}
-                  >
-                    <Download className="h-3.5 w-3.5" />
-                    Download Dispatch Slip
-                  </Button>
+                  {canDownload ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="mt-3 h-9 gap-1.5 text-xs"
+                      onClick={handleDownloadSlip}
+                    >
+                      <Download className="h-3.5 w-3.5" />
+                      Download Dispatch Slip
+                    </Button>
+                  ) : null}
                 </section>
               )}
 
-              {!isCustomer && (
+              {!isCustomer && canDownload ? (
                 <section>
                   <Button
                     type="button"
@@ -295,7 +299,7 @@ export function TransferCard({
                     Download Transfer Slip
                   </Button>
                 </section>
-              )}
+              ) : null}
 
               <section>
                 <SectionLabel>Products</SectionLabel>

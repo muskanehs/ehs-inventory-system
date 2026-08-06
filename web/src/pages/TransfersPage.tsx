@@ -35,7 +35,7 @@ import type { TransferStatus } from "@/lib/types";
 
 type DateFilter = "all" | "7d" | "30d" | "90d";
 
-const PAGE_SIZE = 20;
+const PAGE_SIZE = 25;
 
 const DATE_FILTER_DAYS: Record<DateFilter, string | undefined> = {
   all: undefined,
@@ -68,7 +68,11 @@ export default function TransfersPage() {
   const { approve, approveAll, reject, remove } = useTransferActions();
   const role = useAuthStore((s) => s.role);
   const isAdmin = role === "ADMIN";
-  const canDeleteTransfers = role === "ADMIN" || role === "STORE_MANAGER" || role === "GODOWN_MANAGER";
+  const isViewer = role === "VIEWER";
+  const canDeleteTransfers =
+    !isViewer && (role === "ADMIN" || role === "STORE_MANAGER" || role === "GODOWN_MANAGER");
+  const canCreateTransfers = !isViewer;
+  const canExportTransfers = !isViewer;
   const pendingCount = transferStats?.pending ?? 0;
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
 
@@ -165,17 +169,21 @@ export default function TransfersPage() {
                 Approve All ({pendingCount})
               </Button>
             )}
-            <ExportButton
-              path="/transfers/export"
-              filename="transfers.xlsx"
-              label="Export"
-              className="h-9 px-3"
-              variant="outline"
-            />
-            <Button className="h-9 px-3" onClick={() => setCreateOpen(true)}>
-              <Plus className="h-4 w-4" />
-              New Transfer
-            </Button>
+            {canExportTransfers ? (
+              <ExportButton
+                path="/transfers/export"
+                filename="transfers.xlsx"
+                label="Export"
+                className="h-9 px-3"
+                variant="outline"
+              />
+            ) : null}
+            {canCreateTransfers ? (
+              <Button className="h-9 px-3" onClick={() => setCreateOpen(true)}>
+                <Plus className="h-4 w-4" />
+                New Transfer
+              </Button>
+            ) : null}
           </>
         }
       />
@@ -286,7 +294,9 @@ export default function TransfersPage() {
                 ? "Try adjusting your filters or search term."
                 : "Create a transfer request to move stock between locations."
             }
-            actionLabel={!debouncedQuery && statusFilter === "all" ? "New Transfer" : undefined}
+            actionLabel={
+              !isViewer && !debouncedQuery && statusFilter === "all" ? "New Transfer" : undefined
+            }
             onAction={() => setCreateOpen(true)}
           />
         ) : (
@@ -301,6 +311,7 @@ export default function TransfersPage() {
                   canDeleteTransfers &&
                   (role !== "GODOWN_MANAGER" || transfer.status === "PENDING")
                 }
+                canDownload={!isViewer}
                 onApprove={() =>
                   runAction(
                     () => approve.mutateAsync(transfer.id),

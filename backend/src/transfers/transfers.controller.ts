@@ -37,13 +37,13 @@ export class TransfersController {
   ) {}
 
   @Get("stats")
-  @Roles(Role.ADMIN, Role.STORE_MANAGER, Role.GODOWN_MANAGER)
+  @Roles(Role.ADMIN, Role.STORE_MANAGER, Role.GODOWN_MANAGER, Role.VIEWER)
   stats(@CurrentUser() user: AuthUserPayload) {
     return this.transfersService.getStats(user);
   }
 
   @Get()
-  @Roles(Role.ADMIN, Role.STORE_MANAGER, Role.GODOWN_MANAGER)
+  @Roles(Role.ADMIN, Role.STORE_MANAGER, Role.GODOWN_MANAGER, Role.VIEWER)
   findAll(
     @CurrentUser() user: AuthUserPayload,
     @Query("page") page?: string,

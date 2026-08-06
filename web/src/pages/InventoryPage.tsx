@@ -62,7 +62,7 @@ import { formatNumber } from "@/lib/utils";
 import { useAuthStore } from "@/store/auth";
 import { useSearchStore } from "@/store/search";
 
-const PAGE_SIZE = 10;
+const PAGE_SIZE = 25;
 
 const STOCK_FILTERS: { value: StockListFilter; label: string }[] = [
   { value: "all", label: "All stock" },
@@ -101,6 +101,7 @@ export default function InventoryPage() {
   const role = useAuthStore((s) => s.role);
   const canManageProducts = role === "ADMIN" || role === "STORE_MANAGER";
   const canImport = canManageProducts || role === "GODOWN_MANAGER";
+  const canExport = canImport;
 
   const [searchParams, setSearchParams] = useSearchParams();
   const setQuery = useSearchStore((s) => s.setQuery);
@@ -243,7 +244,7 @@ export default function InventoryPage() {
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
-            ) : (
+            ) : canImport ? (
               <Button
                 onClick={() => {
                   setSelectedProductId(undefined);
@@ -253,7 +254,7 @@ export default function InventoryPage() {
                 <PackagePlus className="h-4 w-4" />
                 Add stock
               </Button>
-            )}
+            ) : null}
             <Select
               value={categoryId ?? "all"}
               onValueChange={setCategoryFilter}
@@ -301,7 +302,7 @@ export default function InventoryPage() {
                 </SelectContent>
               </Select>
             ) : null}
-            <StockExportDialog label="Export" variant="outline" />
+            {canExport ? <StockExportDialog label="Export" variant="outline" /> : null}
             {canImport ? (
               <Button variant="outline" onClick={() => setImportOpen(true)}>
                 <FileUp className="h-4 w-4" />
@@ -353,10 +354,17 @@ export default function InventoryPage() {
                 ? "Try a different search or add a product to get started."
                 : "No products match this stock filter. Try another filter or clear it."
             }
-            actionLabel={stockFilter === "all" ? "Add Stock" : "Show all stock"}
+            actionLabel={
+              stockFilter === "all"
+                ? canImport
+                  ? "Add Stock"
+                  : undefined
+                : "Show all stock"
+            }
             onAction={() => {
-              if (stockFilter === "all") setAddStockOpen(true);
-              else setStockFilter("all");
+              if (stockFilter === "all") {
+                if (canImport) setAddStockOpen(true);
+              } else setStockFilter("all");
             }}
           />
         ) : (

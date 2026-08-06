@@ -34,7 +34,7 @@ export class CategoriesController {
   ) {}
 
   @Get()
-  @Roles(Role.ADMIN, Role.STORE_MANAGER, Role.GODOWN_MANAGER)
+  @Roles(Role.ADMIN, Role.STORE_MANAGER, Role.GODOWN_MANAGER, Role.VIEWER)
   @Header("Cache-Control", "private, no-cache")
   async findAll(
     @CurrentUser() user: AuthUserPayload,
@@ -50,7 +50,7 @@ export class CategoriesController {
   }
 
   @Get("stats")
-  @Roles(Role.ADMIN, Role.STORE_MANAGER)
+  @Roles(Role.ADMIN, Role.STORE_MANAGER, Role.VIEWER)
   getStats() {
     return this.categoriesService.getStats();
   }

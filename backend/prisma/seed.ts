@@ -17,6 +17,7 @@ async function upsertUserByEmail(
 
 async function main() {
   const adminPassword = await bcrypt.hash("Admin@123", 10);
+  const viewerPassword = await bcrypt.hash("Ehs@123", 10);
 
   await upsertUserByEmail(
     "admin@ehsinventory.in",
@@ -32,6 +33,23 @@ async function main() {
       passwordHash: adminPassword,
       role: Role.ADMIN,
       mustChangePassword: true
+    }
+  );
+
+  await upsertUserByEmail(
+    "viewer@ehsinventory.in",
+    {
+      name: "Viewer",
+      email: "viewer@ehsinventory.in",
+      passwordHash: viewerPassword,
+      role: Role.VIEWER,
+      mustChangePassword: false
+    },
+    {
+      name: "Viewer",
+      passwordHash: viewerPassword,
+      role: Role.VIEWER,
+      mustChangePassword: false
     }
   );
 }

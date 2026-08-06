@@ -41,19 +41,29 @@ const navigation: NavGroup[] = [
   {
     title: "Inventory",
     items: [
-      { label: "Stock", href: "/inventory", icon: Package },
+      {
+        label: "Stock",
+        href: "/inventory",
+        icon: Package,
+        roles: ["ADMIN", "STORE_MANAGER", "GODOWN_MANAGER", "VIEWER"]
+      },
       {
         label: "Categories",
         href: "/categories",
         icon: FolderTree,
-        roles: ["ADMIN", "STORE_MANAGER"]
+        roles: ["ADMIN", "STORE_MANAGER", "VIEWER"]
       }
     ]
   },
   {
     title: "Operations",
     items: [
-      { label: "Transfers", href: "/transfers", icon: ArrowLeftRight },
+      {
+        label: "Transfers",
+        href: "/transfers",
+        icon: ArrowLeftRight,
+        roles: ["ADMIN", "STORE_MANAGER", "GODOWN_MANAGER", "VIEWER"]
+      },
       {
         label: "Activity",
         href: "/activity",

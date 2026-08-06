@@ -1,4 +1,4 @@
-export type Role = "ADMIN" | "STORE_MANAGER" | "GODOWN_MANAGER" | "STAFF";
+export type Role = "ADMIN" | "STORE_MANAGER" | "GODOWN_MANAGER" | "STAFF" | "VIEWER";
 
 export type LocationType = "STORE" | "GODOWN";
 

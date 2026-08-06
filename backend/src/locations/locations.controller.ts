@@ -34,7 +34,7 @@ export class LocationsController {
   ) {}
 
   @Get()
-  @Roles(Role.ADMIN, Role.STORE_MANAGER, Role.GODOWN_MANAGER)
+  @Roles(Role.ADMIN, Role.STORE_MANAGER, Role.GODOWN_MANAGER, Role.VIEWER)
   @Header("Cache-Control", "private, max-age=60")
   async findAll(
     @CurrentUser() user: AuthUserPayload,

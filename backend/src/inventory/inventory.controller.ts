@@ -13,13 +13,13 @@ export class InventoryController {
   constructor(private readonly inventoryService: InventoryService) {}
 
   @Get()
-  @Roles(Role.ADMIN, Role.STORE_MANAGER, Role.GODOWN_MANAGER)
+  @Roles(Role.ADMIN, Role.STORE_MANAGER, Role.GODOWN_MANAGER, Role.VIEWER)
   findAll(@CurrentUser() user: AuthUserPayload, @Query("locationId") locationId?: string) {
     return this.inventoryService.findAll(user, locationId);
   }
 
   @Get("grouped")
-  @Roles(Role.ADMIN, Role.STORE_MANAGER, Role.GODOWN_MANAGER)
+  @Roles(Role.ADMIN, Role.STORE_MANAGER, Role.GODOWN_MANAGER, Role.VIEWER)
   findGrouped(
     @CurrentUser() user: AuthUserPayload,
     @Query("page") page?: string,

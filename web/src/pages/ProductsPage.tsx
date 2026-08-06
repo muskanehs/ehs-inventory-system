@@ -39,7 +39,7 @@ import type { Product } from "@/lib/types";
 import { cn, formatNumber } from "@/lib/utils";
 import { useAuthStore } from "@/store/auth";
 
-const PAGE_SIZE = 10;
+const PAGE_SIZE = 25;
 
 type SortField = "name" | "sku" | "category" | "unit" | "minimumStockLevel";
 type SortDir = "asc" | "desc";

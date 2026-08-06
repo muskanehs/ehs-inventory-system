@@ -56,7 +56,7 @@ import { cn, formatNumber } from "@/lib/utils";
 import { Navigate } from "react-router-dom";
 import { useAuthStore } from "@/store/auth";
 
-const PAGE_SIZE = 10;
+const PAGE_SIZE = 25;
 
 type SortField = "name" | "description" | "products";
 type SortDir = "asc" | "desc";
@@ -64,6 +64,7 @@ type SortDir = "asc" | "desc";
 export default function CategoriesPage() {
   const role = useAuthStore((s) => s.role);
   const canManage = role === "ADMIN" || role === "STORE_MANAGER";
+  const canView = canManage || role === "VIEWER";
   const isAdmin = role === "ADMIN";
 
   const [page, setPage] = useState(1);
@@ -226,7 +227,9 @@ export default function CategoriesPage() {
     </button>
   );
 
-  const CategoryActions = ({ category }: { category: Category }) => (
+  const CategoryActions = ({ category }: { category: Category }) => {
+    if (!canManage) return null;
+    return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button
@@ -263,10 +266,11 @@ export default function CategoriesPage() {
         )}
       </DropdownMenuContent>
     </DropdownMenu>
-  );
+    );
+  };
 
-  if (!canManage) {
-    return <Navigate to="/" replace />;
+  if (!canView) {
+    return <Navigate to="/inventory" replace />;
   }
 
   return (
@@ -274,19 +278,21 @@ export default function CategoriesPage() {
       <PageHeader
         title="Categories"
         actions={
-          <>
-            <ExportButton
-              path="/categories/export"
-              filename="categories.xlsx"
-              label="Export"
-              className="h-9 px-3"
-              variant="outline"
-            />
-            <Button className="h-9 px-3" onClick={openCreate}>
-              <Plus className="h-4 w-4" />
-              New Category
-            </Button>
-          </>
+          canManage ? (
+            <>
+              <ExportButton
+                path="/categories/export"
+                filename="categories.xlsx"
+                label="Export"
+                className="h-9 px-3"
+                variant="outline"
+              />
+              <Button className="h-9 px-3" onClick={openCreate}>
+                <Plus className="h-4 w-4" />
+                New Category
+              </Button>
+            </>
+          ) : undefined
         }
       />
 

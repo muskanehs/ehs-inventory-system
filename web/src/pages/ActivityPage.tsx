@@ -31,7 +31,7 @@ import { cn, formatDate, formatNumber } from "@/lib/utils";
 
 type ActivityTab = "stock" | "transfers";
 
-const PAGE_SIZE = 20;
+const PAGE_SIZE = 25;
 
 const EDITABLE_MOVEMENT_TYPES = new Set(["PURCHASE", "RETURN", "ADJUSTMENT"]);
 

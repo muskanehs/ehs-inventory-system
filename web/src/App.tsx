@@ -59,7 +59,7 @@ function ProtectedRoute({ children }: { children: JSX.Element }) {
 
 function GodownHomeRedirect() {
   const role = useAuthStore((s) => s.role);
-  if (role === "GODOWN_MANAGER") {
+  if (role === "GODOWN_MANAGER" || role === "VIEWER") {
     return <Navigate to="/inventory" replace />;
   }
   return <DashboardPage />;
@@ -70,7 +70,7 @@ function RoleGuard({
   allowed
 }: {
   children: JSX.Element;
-  allowed: Array<"ADMIN" | "STORE_MANAGER" | "GODOWN_MANAGER" | "STAFF">;
+  allowed: Array<"ADMIN" | "STORE_MANAGER" | "GODOWN_MANAGER" | "STAFF" | "VIEWER">;
 }) {
   const role = useAuthStore((s) => s.role);
   if (!role || !allowed.includes(role)) {
@@ -111,7 +111,14 @@ export default function App() {
               }
             />
             <Route path="/reports" element={<Navigate to="/" replace />} />
-            <Route path="/godowns" element={<GodownsPage />} />
+            <Route
+              path="/godowns"
+              element={
+                <RoleGuard allowed={["ADMIN"]}>
+                  <GodownsPage />
+                </RoleGuard>
+              }
+            />
           </Route>
         </Routes>
       </Suspense>

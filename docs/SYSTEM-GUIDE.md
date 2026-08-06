@@ -39,6 +39,7 @@ You only see the menus your login is allowed to use.
 | Email | Starting password |
 |--------|-------------------|
 | `admin@ehsinventory.in` | `Admin@123` |
+| `viewer@ehsinventory.in` | `Ehs@123` (read-only: Stock, Categories, Transfers) |
 
 On first login, the system will ask you to **set a new password**.  
 Choose something different from the starting password, then continue.
