@@ -147,6 +147,11 @@ export function CreateTransferDialog({ open, onOpenChange }: CreateTransferDialo
     setLines([emptyLine()]);
   };
 
+  const handleOpenChange = (value: boolean) => {
+    onOpenChange(value);
+    if (!value) resetForm();
+  };
+
   const updateLine = (index: number, patch: Partial<LineRow>) => {
     setLines((prev) => prev.map((row, i) => (i === index ? { ...row, ...patch } : row)));
   };
@@ -231,8 +236,7 @@ export function CreateTransferDialog({ open, onOpenChange }: CreateTransferDialo
       });
 
       toast.success("Transfer requested");
-      onOpenChange(false);
-      resetForm();
+      handleOpenChange(false);
     } catch (error: unknown) {
       const message =
         error && typeof error === "object" && "response" in error
@@ -243,13 +247,7 @@ export function CreateTransferDialog({ open, onOpenChange }: CreateTransferDialo
   };
 
   return (
-    <Dialog
-      open={open}
-      onOpenChange={(value) => {
-        onOpenChange(value);
-        if (!value) resetForm();
-      }}
-    >
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="flex max-h-[min(90vh,100dvh-2rem)] w-[calc(100%-2rem)] max-w-[680px] flex-col gap-0 overflow-hidden p-0 duration-200">
         <DialogHeader className="shrink-0 space-y-1 border-b px-6 py-5 pr-14 text-left">
           <DialogTitle className="text-xl font-semibold tracking-tight">Request Transfer</DialogTitle>
@@ -580,7 +578,7 @@ export function CreateTransferDialog({ open, onOpenChange }: CreateTransferDialo
                 type="button"
                 variant="outline"
                 className="h-12 min-h-11 w-full rounded-lg sm:w-auto sm:px-6"
-                onClick={() => onOpenChange(false)}
+                onClick={() => handleOpenChange(false)}
               >
                 Cancel
               </Button>
