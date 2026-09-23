@@ -15,8 +15,10 @@ function useDebouncedValue<T>(value: T, delay = 200): T {
   return debounced;
 }
 
-function formatProductLabel(product: Pick<ProductPickerItem, "name" | "sku">) {
-  return product.sku ? `${product.name} (${product.sku})` : product.name;
+function formatProductLabel(product: Pick<ProductPickerItem, "name" | "sku" | "unit">) {
+  const name = product.sku ? `${product.name} (${product.sku})` : product.name;
+  const unit = product.unit?.trim();
+  return unit ? `${name} · ${unit}` : name;
 }
 
 type ProductComboboxProps = {

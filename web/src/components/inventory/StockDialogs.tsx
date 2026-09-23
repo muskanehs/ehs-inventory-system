@@ -33,9 +33,9 @@ type AddStockDialogProps = {
   initialProductId?: string;
 };
 
-type LineRow = { productId: string; quantity: string };
+type LineRow = { productId: string; quantity: string; unit: string };
 
-const emptyLine = (): LineRow => ({ productId: "", quantity: "1" });
+const emptyLine = (): LineRow => ({ productId: "", quantity: "1", unit: "" });
 
 const fieldInputClass = "h-11 rounded-lg text-sm";
 const selectTriggerClass = "h-11 rounded-lg text-sm";
@@ -52,7 +52,7 @@ export function AddStockDialog({ open, onOpenChange, initialProductId }: AddStoc
 
   useEffect(() => {
     if (open) {
-      setLines([{ productId: initialProductId ?? "", quantity: "1" }]);
+      setLines([{ productId: initialProductId ?? "", quantity: "1", unit: "" }]);
       setMovementType("PURCHASE");
       setRemarks("");
       if (isGodownScoped && scopedLocationId) {
@@ -219,8 +219,12 @@ export function AddStockDialog({ open, onOpenChange, initialProductId }: AddStoc
                           locationId="all"
                           excludeIds={selectedIds}
                           aria-label={`Product ${index + 1}`}
-                          onValueChange={(productId) =>
-                            updateLine(index, { productId, quantity: line.quantity || "1" })
+                          onValueChange={(productId, product) =>
+                            updateLine(index, {
+                              productId,
+                              quantity: line.quantity || "1",
+                              unit: product?.unit?.trim() ?? ""
+                            })
                           }
                         />
                       </div>
@@ -255,6 +259,11 @@ export function AddStockDialog({ open, onOpenChange, initialProductId }: AddStoc
                           aria-label={`Quantity for product ${index + 1}`}
                           disabled={!line.productId}
                         />
+                        {line.unit ? (
+                          <span className="w-12 shrink-0 truncate text-xs text-muted-foreground sm:w-16">
+                            {line.unit}
+                          </span>
+                        ) : null}
                         <Button
                           type="button"
                           variant="outline"
