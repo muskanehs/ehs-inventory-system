@@ -120,13 +120,17 @@ export default function InventoryPage() {
 
   const stockFilter = parseStockFilter(searchParams.get("filter"));
   const categoryId = searchParams.get("category") || undefined;
+  const godownFilter = searchParams.get("godown") || "all";
 
   // Godown managers default to their godown; "all" unlocks shop + every godown.
+  // Admins (and other unscoped roles) can pick one godown to see only that stock.
   const listLocationId = isGodownScoped
     ? stockView === "overall"
       ? "all"
       : scopedLocationId ?? undefined
-    : undefined;
+    : godownFilter !== "all"
+      ? godownFilter
+      : undefined;
 
   const { data: groupedPage, isLoading, isError, refetch } = useGroupedInventory({
     page,
@@ -137,6 +141,10 @@ export default function InventoryPage() {
     categoryId
   });
   const { data: locations = [] } = useLocations();
+  const godowns = useMemo(
+    () => locations.filter((location) => location.type === "GODOWN"),
+    [locations]
+  );
 
   useEffect(() => {
     const q = searchParams.get("q");
@@ -145,7 +153,7 @@ export default function InventoryPage() {
 
   useEffect(() => {
     setPage(1);
-  }, [debouncedQuery, stockFilter, categoryId, stockView]);
+  }, [debouncedQuery, stockFilter, categoryId, stockView, godownFilter]);
 
   const setStockFilter = (next: StockListFilter) => {
     setSearchParams(
@@ -166,6 +174,19 @@ export default function InventoryPage() {
         const params = new URLSearchParams(prev);
         if (next === "all") params.delete("category");
         else params.set("category", next);
+        return params;
+      },
+      { replace: true }
+    );
+    setPage(1);
+  };
+
+  const setGodownFilter = (next: string) => {
+    setSearchParams(
+      (prev) => {
+        const params = new URLSearchParams(prev);
+        if (next === "all") params.delete("godown");
+        else params.set("godown", next);
         return params;
       },
       { replace: true }
@@ -283,6 +304,21 @@ export default function InventoryPage() {
                 ))}
               </SelectContent>
             </Select>
+            {!isGodownScoped ? (
+              <Select value={godownFilter} onValueChange={setGodownFilter}>
+                <SelectTrigger className="h-9 w-[160px] bg-surface sm:w-[200px]" aria-label="Godown filter">
+                  <SelectValue placeholder="All locations" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All locations</SelectItem>
+                  {godowns.map((godown) => (
+                    <SelectItem key={godown.id} value={godown.id}>
+                      {godown.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : null}
             {isGodownScoped ? (
               <Select
                 value={stockView}
@@ -374,7 +410,7 @@ export default function InventoryPage() {
               {paginated.map(({ group, status, distribution }) => {
                 const categoryName = group.product.category?.name ?? "Uncategorized";
                 const displayDistribution =
-                  isGodownScoped && stockView === "scoped" && listLocationId && listLocationId !== "all"
+                  listLocationId && listLocationId !== "all"
                     ? distribution.filter(({ location }) => location.id === listLocationId)
                     : distribution;
 
